@@ -60,9 +60,9 @@ def main():
     print "Training Sequences: %d" % len(training_seqs)
     print "Testing Sequences: %d" % len(testing_seqs)
     print "Number of skills: %d" % num_skills
-    
+
     # Our loss function
-    # The model gives predictions for all skills so we need to get the 
+    # The model gives predictions for all skills so we need to get the
     # prediction for the skill at time t. We do that by taking the column-wise
     # dot product between the predictions at each time slice and a
     # one-hot encoding of the skill at time t.
@@ -72,12 +72,12 @@ def main():
         skill = y_true[:,:,0:num_skills]
         obs = y_true[:,:,num_skills]
         rel_pred = Th.sum(y_pred * skill, axis=2)
-        
+
         # keras implementation does a mean on the last dimension (axis=-1) which
         # it assumes is a singleton dimension. But in our context that would
         # be wrong.
         return K.binary_crossentropy(rel_pred, obs)
-    
+
     
     # build model
     model = Sequential()
@@ -106,32 +106,42 @@ def main():
     # training function
     def trainer(X, Y):
         overall_loss[0] += model.train_on_batch(X, Y)[0]
-    
+
     # prediction
     def predictor(X, Y):
         batch_activations = model.predict_on_batch(X)
         skill = Y[:,:,0:num_skills]
         obs = Y[:,:,num_skills]
         y_pred = np.squeeze(np.array(batch_activations))
-        
+
         rel_pred = np.sum(y_pred * skill, axis=2)
-        
+
         for b in xrange(0, X.shape[0]):
             for t in xrange(0, X.shape[1]):
                 if X[b, t, 0] == -1.0:
                     continue
                 preds.append((rel_pred[b][t], obs[b][t]))
-        
+
     # call when prediction batch is finished
     # resets LSTM state because we are done with all sequences in the batch
     def finished_prediction_batch(percent_done):
         model.reset_states()
-        
+
     # similiar to the above
     def finished_batch(percent_done):
         print "(%4.3f %%) %f" % (percent_done, overall_loss[0])
         model.reset_states()
-        
+
+
+    #if we already have weights, just load them and do cool stuff instead of training the model
+    model.load_weights(model_file)
+    print "Loaded model weights"
+    run_func(testing_seqs, num_skills, predictor, batch_size, time_window, finished_prediction_batch)
+    auc = roc_auc_score([p[1] for p in preds], [p[0] for p in preds])
+    print "==== Epoch: %d, Test AUC: %f" % (999, auc)
+    return
+
+
     # run the model
     for e in xrange(0, epochs):
         model.reset_states()

@@ -25,6 +25,8 @@ import theano.tensor as Th
 import random
 import math
 import argparse
+from IPython import embed
+
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -54,7 +56,11 @@ def main():
     overall_loss = [0.0]
     preds = []
     history = []
-    
+    skills_record = []
+    v_hats_record = []
+    answers_record = []
+
+
     # load dataset
     training_seqs, testing_seqs, num_skills = load_dataset(dataset, split_file)
     print "Training Sequences: %d" % len(training_seqs)
@@ -78,26 +84,26 @@ def main():
         # be wrong.
         return K.binary_crossentropy(rel_pred, obs)
 
-    
+
     # build model
     model = Sequential()
-    
+
     # ignore padding
     model.add(Masking(-1.0, batch_input_shape=(batch_size, time_window, num_skills*2)))
-    
+
     # lstm configured to keep states between batches
-    model.add(LSTM(input_dim = num_skills*2, 
-                   output_dim = hidden_units, 
+    model.add(LSTM(input_dim = num_skills*2,
+                   output_dim = hidden_units,
                    return_sequences=True,
                    batch_input_shape=(batch_size, time_window, num_skills*2),
                    stateful = True
     ))
-    
+
     # readout layer. TimeDistributedDense uses the same weights for all
     # time steps.
-    model.add(TimeDistributedDense(input_dim = hidden_units, 
+    model.add(TimeDistributedDense(input_dim = hidden_units,
         output_dim = num_skills, activation='sigmoid'))
-    
+
     # optimize with rmsprop which dynamically adapts the learning
     # rate of each weight.
     model.compile(loss=loss_function,
@@ -110,9 +116,11 @@ def main():
     # prediction
     def predictor(X, Y):
         batch_activations = model.predict_on_batch(X)
-        skill = Y[:,:,0:num_skills]
-        obs = Y[:,:,num_skills]
-        y_pred = np.squeeze(np.array(batch_activations))
+        skill = Y[:,:,0:num_skills] #1-hot encoding of which skill this observation represents
+        obs = Y[:,:,num_skills] #the right/wrong for each observation, 1 for right, 0 for wrong
+        y_pred = np.squeeze(np.array(batch_activations)) #the vector of probabilities - what we want!
+
+        #v_hat = np.mean(y_pred,axis=1)
 
         rel_pred = np.sum(y_pred * skill, axis=2)
 
@@ -121,6 +129,11 @@ def main():
                 if X[b, t, 0] == -1.0:
                     continue
                 preds.append((rel_pred[b][t], obs[b][t]))
+                #v_hats.append(np.mean(y_pred[b][t]))
+
+                answers_record.append(obs)
+                skills_record.append(skill)
+                v_hats_record.append(np.mean(y_pred,axis=2))
 
     # call when prediction batch is finished
     # resets LSTM state because we are done with all sequences in the batch
@@ -136,9 +149,32 @@ def main():
     #if we already have weights, just load them and do cool stuff instead of training the model
     model.load_weights(model_file)
     print "Loaded model weights"
-    run_func(testing_seqs, num_skills, predictor, batch_size, time_window, finished_prediction_batch)
+    run_func(training_seqs, num_skills, predictor, batch_size, time_window, finished_prediction_batch)
     auc = roc_auc_score([p[1] for p in preds], [p[0] for p in preds])
     print "==== Epoch: %d, Test AUC: %f" % (999, auc)
+
+    v_hats_flat = []
+    for b in v_hats_record:
+        v_hats_flat += list(b)
+    v_hats_array = np.array(v_hats_flat)
+    np.save('dkt_v_hats.npy', v_hats_array)
+
+    answers_flat = []
+    for b in answers_record:
+        answers_flat += list(b)
+    answers_array = np.array(answers_flat)
+    np.save('dkt_answers.npy', answers_array)
+
+    skills_flat = []
+    for b in skills_record:
+        for t in b:
+            skills_flat += [[np.argwhere(y != 0)[0][0] for y in t]]
+    skills_array = np.array(skills_flat)
+    np.save('dkt_skills.npy', skills_array)
+
+    #embed()
+
+
     return
 
 

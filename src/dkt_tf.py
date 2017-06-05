@@ -3,7 +3,6 @@ import tensorflow as tf
 from collections import defaultdict
 from IPython import embed
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_auc_score
 
 
 DATA_LOC = './assistments.txt'
@@ -111,38 +110,35 @@ class DKTModel(object):
         outputs_flat = tf.reshape(outputs, [-1, self.hidden_size])
         inner = tf.matmul(outputs_flat, w) + b
 
-        #logit of p(correct) predicted for each time step
+        #logit of p(correct) predicted for each time step, for each topic class
         logits = tf.reshape(inner, [-1, self.max_length, self.num_topics])
+
+        self.probs = tf.nn.softmax(logits)
+        topic_indicators = tf.one_hot(self.topics_placeholder, self.num_topics)
+        self.topical_probs = tf.reduce_sum(self.probs * topic_indicators, 2)
 
         return logits
 
     def evaluate_logits(self, logits):
         #Probabilities of getting each class at each time correct, for reference
-        self.probs = tf.nn.softmax(logits)
-        topic_indicators = tf.one_hot(self.topics_placeholder, self.num_topics)
-        topical_probs = tf.reduce_sum(self.probs * topic_indicators, 2)
-        self.guesses = tf.to_int32(tf.round(topical_probs))
+        self.guesses = tf.to_int32(tf.round(self.topical_probs))
         corrects = tf.to_int32(tf.equal(self.guesses, self.answers_placeholder))
         masked_corrects = tf.boolean_mask(corrects, self.mask_placeholder)
         num_correct = tf.reduce_sum(masked_corrects)
 
-        self.auc_score, self.auc_op = tf.metrics.auc(self.answers_placeholder, topical_probs)
+        self.auc_score, self.auc_op = tf.metrics.auc(self.answers_placeholder, self.topical_probs)
 
         # How many total examples in this batch - for the denominator of # correct
         self.num_total = tf.reduce_sum(tf.to_int32(self.mask_placeholder))
 
         return num_correct
 
-    def find_loss(self, logits, labels):
-        #Find the cross-entropy loss between the correct answer and the
-        #probability of the answer of the correct class!
-        ce_wl = tf.nn.sparse_softmax_cross_entropy_with_logits
-        losses = ce_wl(logits=logits, labels=labels)
+    def find_loss(self, probs, labels):
+        losses = probs - tf.to_float(labels)
         masked_losses = tf.boolean_mask(losses, self.mask_placeholder)
 
-        #sum loss over all indices, treating each time-step as a separate
-        #data point
-        total_loss = tf.reduce_sum(masked_losses)
+        #Calculate mean-squared error
+        total_loss = tf.reduce_sum(masked_losses**2)
         return total_loss
 
 
@@ -153,16 +149,16 @@ class DKTModel(object):
             self.logits = self.data_pipeline()
             self.num_correct = self.evaluate_logits(self.logits)
 
-        self.loss = self.find_loss(self.logits, self.answers_placeholder)
-        self.train_op = tf.train.AdamOptimizer().minimize(self.loss)
+        self.loss = self.find_loss(self.topical_probs, self.answers_placeholder)
+        self.train_op = tf.train.AdamOptimizer(self.lr_placeholder).minimize(self.loss)
 
 
     def train_on_batch(self, session, seqs_batch, lens_batch, masks_batch, answers_batch, topics_batch):
         feed_dict = {self.seqs_placeholder: seqs_batch,
                      self.seq_lens_placeholder: lens_batch,
                      self.mask_placeholder: masks_batch,
-                     self.answers_placeholder: answers_batch}
-        #Don't need topic labels fed in since we're not computing pct correct
+                     self.answers_placeholder: answers_batch,
+                     self.topics_placeholder: topics_batch}
         _, loss = session.run([self.train_op, self.loss], feed_dict=feed_dict)
         return loss
 

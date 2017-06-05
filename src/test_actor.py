@@ -12,69 +12,53 @@ import random
 batch_size = 5
 critic_scores = np.zeros((batch_size, 2))
 
-seq_len=10
+seq_len=5
 
 
-if __name__ == '__main__':
-    model = actor.Actor(categories=2, cat_vec_len=10, seq_len=seq_len)
 
-    with tf.Session() as session:
-        session.run(tf.global_variables_initializer())
-
-        epsilon = 0.2
-
-        for i in range(1000):
-            q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
-            correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
-            seq_lens = np.ones((batch_size,), dtype=np.int32)
-
-            if i % 200 == 0:
-                epsilon = epsilon/2
-
-            for j in range(seq_len):
-                actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, epsilon=epsilon)
-                learning = np.zeros((batch_size,))
-                for an, action in enumerate(actions):
-                    if critic_scores[an, action] >= 1:
-                        continue # already a score of 0
-                    if action == 0:
-                        learning[an] = 0.1
-                    else:
-                        learning[an] = 0.2
-                    critic_scores[an, action] += learning[an]
-                    correct_hist[an, j] = (random.random() < critic_scores[an, action])
-
-                q_hist[:, j] = actions
-                model.apply_grad(session, learning)
-                seq_lens += 1
 
         # Now check out what the model infers:
-        q_hist = np.zeros((batch_size, seq_len))
-        correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
-        seq_lens = np.ones((batch_size,))
-        for j in range(seq_len):
-            actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, epsilon=0)
-            learning = np.zeros((batch_size,))
-            for an, action in enumerate(actions):
-                if critic_scores[an, action] >= 1:
-                    continue # already a score of 0
+
+
+def run_model(model, session, test=False):
+    q_hist = np.zeros((batch_size, seq_len))
+    correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
+    seq_lens = np.ones((batch_size,))
+    if test: model.action_probs = []
+    for j in range(seq_len):
+        actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, collect_action_probs=test)
+        learning = np.zeros((batch_size,))
+        for an, action in enumerate(actions):
+            if critic_scores[an, action] >= 1:
                 if action == 0:
                     learning[an] = 0.1
                 else:
                     learning[an] = 0.2
                 critic_scores[an, action] += learning[an]
-                correct_hist[an, j] = (random.random() < critic_scores[an, action])
+            correct_hist[an, j] = (random.random() < critic_scores[an, action])
 
-            q_hist[:, j] = actions
-            model.apply_grad(session, learning)
-            seq_lens += 1
+        q_hist[:, j] = actions
+        if not test: model.apply_grad(session, learning)
+        seq_lens += 1
 
+    if test:
         print("Expected [ 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,]")
         print(q_hist)
 
+        print("Probabilities")
+        print(model.action_probs)
 
 
+def test_system():
+    model = actor.Actor(categories=2, cat_vec_len=10, seq_len=seq_len)
 
+    with tf.Session() as session:
+        session.run(tf.global_variables_initializer())
+        for i in range(1000):
+            run_model(model, session)
 
+        run_model(model, session, test=True)
 
+if __name__ == '__main__':
+    test_system()
 

@@ -10,23 +10,22 @@ import random
 # one with learning rate 0.2 per round
 # one with learning rate 0.1 per round
 batch_size = 5
-critic_scores = np.zeros((batch_size, 2))
-
-seq_len=5
+seq_len = 8
 
 
-
-
-        # Now check out what the model infers:
+# Now check out what the model infers:
 
 
 def run_model(model, session, test=False):
+    critic_scores = np.zeros((batch_size, 2))
     q_hist = np.zeros((batch_size, seq_len))
     correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
     seq_lens = np.ones((batch_size,))
     if test: model.action_probs = []
     for j in range(seq_len):
-        actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, collect_action_probs=test)
+        extra_args = dict(collect_action_probs=True, epsilon=0) if test else {}
+
+        actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, **extra_args)
         learning = np.zeros((batch_size,))
         for an, action in enumerate(actions):
             if critic_scores[an, action] < 1:
@@ -45,7 +44,13 @@ def run_model(model, session, test=False):
         print("Expected [ 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,]")
         print(q_hist)
 
-        print("Probabilities")
+        print("Avg Probs of action 1:")
+        print("predicted that it should be close to 1 for first 5 time periods and quickly drop off.")
+        array_probs = np.asarray(model.action_probs)
+        print(array_probs[:, :, 1].mean(axis=1))  # in this case the batch is on axis 1....
+
+
+        print("All Probabilities:")
         print(model.action_probs)
 
 
@@ -54,7 +59,7 @@ def test_system():
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
-        for i in range(1000):
+        for i in range(300):
             run_model(model, session)
 
         run_model(model, session, test=True)

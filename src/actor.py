@@ -90,7 +90,7 @@ class Actor(object):
         self.train_op = opt.minimize(mask_res, grad_loss=-self.action_gradient)
 
     def get_next_action(self, session, question_hist, correct_hist, seq_lens,
-                        collect_action_probs=False):
+                        collect_action_probs=False, epsilon=0.05):
         """
         :param question_hist: Questions given in the past (ndarray [Batch_sz, N])
         :param correct_hist: Whether the question was answered correctly ([Batch_sz, N] NDarray)
@@ -104,11 +104,9 @@ class Actor(object):
             self.seq_len: np.copy(seq_lens),
         }
 
-        """
         if random.random() < epsilon:
             self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape)
             return self.next_action
-        """
 
         action_probs, = session.run([self.res], feed_dict=self.action_feed_dict)
 

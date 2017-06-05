@@ -126,7 +126,7 @@ class DKTModel(object):
         masked_corrects = tf.boolean_mask(corrects, self.mask_placeholder)
         num_correct = tf.reduce_sum(masked_corrects)
 
-        self.auc_score = roc_auc_score(self.answers_placeholder, topical_probs)
+        self.auc_score, self.auc_op = tf.metrics.auc(self.answers_placeholder, topical_probs)
 
         # How many total examples in this batch - for the denominator of # correct
         self.num_total = tf.reduce_sum(tf.to_int32(self.mask_placeholder))
@@ -162,6 +162,7 @@ class DKTModel(object):
                      self.seq_lens_placeholder: lens_batch,
                      self.mask_placeholder: masks_batch,
                      self.answers_placeholder: answers_batch}
+        #Don't need topic labels fed in since we're not computing pct correct
         _, loss = session.run([self.train_op, self.loss], feed_dict=feed_dict)
         return loss
 
@@ -172,7 +173,7 @@ class DKTModel(object):
                      self.answers_placeholder: answers_batch,
                      self.topics_placeholder: topics_batch}
         num_correct, num_total, auc = \
-            session.run([self.num_correct, self.num_total, self.auc_score], feed_dict=feed_dict)
+            session.run([self.num_correct, self.num_total, self.auc_op], feed_dict=feed_dict)
         return num_correct, num_total, auc
 
 
@@ -222,13 +223,14 @@ def train_model(model, session, data):
         test_batches = batchify(test_data)
         total_correct = 0 #total number of examples we got right
         total_total = 0 #total number of examples we tried on
+        total_auc = 0.0
         for test_batch in test_batches:
             num_correct, num_total, auc = model.test_on_batch(session, *test_batch)
-            print auc
+            total_auc += num_total * auc
             total_correct += num_correct
             total_total += num_total
-        print "{} test examples right out of {}, which is {} percent\n".format(
-            total_correct, total_total, 100.0*total_correct/total_total)
+        print "{} test examples right out of {}, which is {} percent. Mean AUC {}\n".format(
+            total_correct, total_total, 100.0*total_correct/total_total, 1.0*total_auc/total_total)
 
 
 def main(_):
@@ -236,13 +238,13 @@ def main(_):
 
     topics, answers, num_topics = read_assistments_data(DATA_LOC)
     full_data = load_data(topics, answers, num_topics)
-    #embeddings, seq_lengths, masks, answers = load_data(topics, answers, num_topics)
-    #train_data = train_data_part(embeddings, seq_lengths, masks, answers)
-
     model = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
+        #We need to explicitly initialize local variables to use
+        #TensorFlow's AUC function for some reason...
+        session.run(tf.local_variables_initializer())
         train_model(model, session, full_data)
 
 

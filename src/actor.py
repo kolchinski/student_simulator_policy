@@ -47,18 +47,20 @@ class Actor(object):
         :param hidden_sz: size of lstm hidden state (x4)
         :param seq_len: max number of questions to ask
         """
+        self.num_cats = categories
         self.moving_avg = 0
         self.avg_counts = 0
         self.action_applied = False
         self.build_network(categories, cat_vec_len, hidden_sz, seq_len, dropout)
 
-    def build_network(self, categories, cat_vec_len, hidden_sz, seq_len, dropout):
+    def build_network(self, categories, cat_vec_len, hidden_sz, max_seq_len, dropout):
         xav_init = tf.contrib.layers.xavier_initializer()
         self.cat_indicies = tf
         # Embeddings
-        self.q = tf.placeholder(tf.int32, (None, seq_len))
+        self.q = tf.placeholder(tf.int32, (None, max_seq_len))
         self.cur_q_number = tf.placeholder(tf.int32, (None))  # the question for which we want an inference
-        self.answ_correct = tf.placeholder(tf.float32, (None, seq_len))
+        self.answ_correct = tf.placeholder(tf.float32, (None, max_seq_len))
+        self.seq_len = tf.placeholder(tf.int32, (None))
         with tf.VariableScope("Actor"):
             embed = tf.get_variable("embed", (categories, cat_vec_len), xav_init)
             q_embed = tf.nn.embedding_lookup(embed, self.q)
@@ -68,21 +70,23 @@ class Actor(object):
             cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob = 1.0 - dropout)
 
             with tf.VariableScope("LSTM1"):
-                lstm1_out, lstm1_states = tf.nn.dynamic_rnn(cell=cell, inputs=lstm_in, sequence_length=seq_len,
+                lstm1_out, lstm1_states = tf.nn.dynamic_rnn(cell=cell, inputs=lstm_in, sequence_length=self.seq_len,
                                                             dtype=tf.float32, swap_memory=True)
 
-            lstm_index_i = lstm1_out[:, self.cur_q_number]
-            hidden_1 = layers.fully_connected(lstm_index_i, num_outputs=categories, scope="FC1")
+            # lstm_index_i = lstm1_out[:, self.cur_q_number]
+            hidden_1 = layers.fully_connected(lstm1_out, num_outputs=categories, scope="FC1")
             self.final_hid = layers.fully_connected(hidden_1, num_outputs=categories,
                                                     activation_fn=None, scope="FC2")
             self.res = tf.nn.softmax(self.final_hid)
 
 
+        self.action_mask = tf.placeholder(tf.bool, [None, categories])
         self.action_gradient = tf.placeholder(tf.float32, [None, categories])
         # the minimize function for the adam loss has a "grad_loss" param taht is useful
-        self.train_op = tf.train.AdamOptimizer(1e-3).minimize(self.res, self.action_gradient)
+        opt = tf.train.AdamOptimizer(1e-3)
+        self.train_op = opt.minimize(self.res * self.action_mask, self.action_gradient)
 
-    def get_next_action(self, session, question_hist, correct_hist, cur_q_num):
+    def get_next_action(self, session, question_hist, correct_hist, cur_q_num, seq_lens):
         """
         :param question_hist: Questions given in the past (ndarray [Batch_sz])
         :param correct_hist: Whether the question was answered correctly ([Batch_sz] NDarray)
@@ -95,23 +99,37 @@ class Actor(object):
             self.q: question_hist,
             self.answ_correct: correct_hist,
             self.cur_q_number: cur_q_num,
+            self.seq_len: seq_lens
         }
         action_probs, = session.run([self.res], feed_dict=self.action_feed_dict)
-        next_action = np.argmax(action_probs, axis=1)
-        return next_action
+        self.next_action = np.argmax(action_probs, axis=1)
+        return self.next_action
 
-    def apply_grad(self, session,  action_perf):
+    def apply_grad(self, session, action_perf):
 
         # first retrieve stored action
         if not self.action_applied:
             raise Exception("You must call Actor.get_next_action before applying another training step")
         self.action_applied = False
 
+        # get reference avg performance
+        self.moving_avg = (self.moving_avg * self.avg_counts + np.sum(action_perf)) / self.avg_counts + len(action_perf)
+        self.avg_counts += len(action_perf)
+
+        # now normalize to this average perf
+        action_vec = np.zeros((len(action_perf), self.num_cats))
+        action_mask = np.zeros_like(action_vec, dtype=np.bool)
+
+        for i, val in enumerate(action_perf - self.moving_avg):
+            action_vec[i, self.next_action[i]] = val
+            action_mask[i, self.next_action[i]] = True
+
         action_perf = self.action_feed_dict.update({
-            self.action_gradient: action_perf
+            self.action_gradient: action_vec,
+            self.action_mask: action_mask
         })
 
-        session.run([self.train_op], feed_dict= action_perf)
+        session.run([self.train_op], feed_dict=action_perf)
 
 
 

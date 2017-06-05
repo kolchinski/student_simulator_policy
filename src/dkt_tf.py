@@ -5,7 +5,7 @@ from IPython import embed
 import matplotlib.pyplot as plt
 
 
-DATA_LOC = './assistments.txt'
+DATA_LOC = './assistments_fake.txt'
 MAX_LENGTH = 100
 LR = 0.01
 HIDDEN_SIZE = 200
@@ -29,6 +29,9 @@ def read_assistments_data(loc):
         answer_seqs[student_id].append(d[2])
         topics.add(d[1])
 
+    #keys = topic_seqs.keys()
+    #np.random.shuffle(keys)
+    #return [topic_seqs[k] for k in keys], [answer_seqs[k] for k in keys], max(topics) + 1
     #topics may not be consecutively numbered but assume they are
     return topic_seqs.values(), answer_seqs.values(), max(topics) + 1
 
@@ -110,16 +113,15 @@ class DKTModel(object):
         outputs_flat = tf.reshape(outputs, [-1, self.hidden_size])
         inner = tf.matmul(outputs_flat, w) + b
 
-        #logit of p(correct) predicted for each time step, for each topic class
-        logits = tf.reshape(inner, [-1, self.max_length, self.num_topics])
+        # p(correct) predicted for each time step, for each topic class
+        self.probs = tf.sigmoid(tf.reshape(inner, [-1, self.max_length, self.num_topics]))
 
-        self.probs = tf.nn.softmax(logits)
         topic_indicators = tf.one_hot(self.topics_placeholder, self.num_topics)
         self.topical_probs = tf.reduce_sum(self.probs * topic_indicators, 2)
 
-        return logits
+        return self.topical_probs
 
-    def evaluate_logits(self, logits):
+    def evaluate_probs(self):
         #Probabilities of getting each class at each time correct, for reference
         self.guesses = tf.to_int32(tf.round(self.topical_probs))
         corrects = tf.to_int32(tf.equal(self.guesses, self.answers_placeholder))
@@ -146,11 +148,13 @@ class DKTModel(object):
         self.add_placeholders()
 
         with tf.variable_scope("dkt"):
-            self.logits = self.data_pipeline()
-            self.num_correct = self.evaluate_logits(self.logits)
+            self.topical_probs = self.data_pipeline()
+            self.num_correct = self.evaluate_probs()
 
         self.loss = self.find_loss(self.topical_probs, self.answers_placeholder)
         self.train_op = tf.train.AdamOptimizer(self.lr_placeholder).minimize(self.loss)
+
+        self.saver = tf.train.Saver()
 
 
     def train_on_batch(self, session, seqs_batch, lens_batch, masks_batch, answers_batch, topics_batch):

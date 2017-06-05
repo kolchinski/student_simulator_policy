@@ -3,6 +3,7 @@ import tensorflow as tf
 from collections import defaultdict
 from IPython import embed
 import matplotlib.pyplot as plt
+from sklearn.metrics import roc_auc_score
 
 
 DATA_LOC = './assistments.txt'
@@ -39,7 +40,7 @@ def load_data(topic_seqs, answer_seqs, num_topics):
     assert(len(topic_seqs) == len(answer_seqs))
     N = len(topic_seqs)
 
-    #topics_padded = []
+    topics_padded = []
     answers_padded = []
     masks = []
     embeddings = np.zeros((N, MAX_LENGTH, num_topics*2))
@@ -50,7 +51,7 @@ def load_data(topic_seqs, answer_seqs, num_topics):
         seq_len = len(topic_seqs[i])
         seq_lens.append(seq_len)
         padding = [0] * (MAX_LENGTH - seq_len)
-        #topics_padded.append(topic_seqs[i] + padding)
+        topics_padded.append(topic_seqs[i] + padding)
         answers_padded.append(answer_seqs[i] + padding)
         masks.append([1] * seq_len + padding)
         for j in xrange(seq_len):
@@ -60,21 +61,21 @@ def load_data(topic_seqs, answer_seqs, num_topics):
             embeddings[i][j][one_hot_index] = 1
 
     #padded topics and answers not actually used, could remove?
-    #self.topics = topics_padded
+    topics = topics_padded
     answers = answers_padded
-    return embeddings, seq_lens, masks, answers
+    return embeddings, seq_lens, masks, answers, topics
 
-def train_data_part(seqs, lens, masks, answers):
-    assert(len(seqs) == len(lens) == len(masks) == len(answers))
+def train_data_part(seqs, lens, masks, answers, topics):
+    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
     N = len(seqs)
     cutoff = int(N * TRAIN_SPLIT)
-    return [(seqs[i], lens[i], masks[i], answers[i]) for i in range(cutoff)]
+    return [(seqs[i], lens[i], masks[i], answers[i], topics[i]) for i in range(cutoff)]
 
-#def test_data_part(seqs, lens, masks, answers):
-#    assert(len(seqs) == len(lens) == len(masks) == len(answers))
-#    N = len(seqs)
-#    cutoff = int(N * TRAIN_SPLIT)
-#    return seqs[cutoff:], lens[cutoff:], masks[cutoff:], answers[:cutoff]
+def test_data_part(seqs, lens, masks, answers, topics):
+    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
+    N = len(seqs)
+    cutoff = int(N * TRAIN_SPLIT)
+    return [(seqs[i], lens[i], masks[i], answers[i], topics[i]) for i in range(cutoff, N)]
 
 
 
@@ -82,7 +83,7 @@ class DKTModel(object):
 
 
     def add_placeholders(self):
-        #self.topics_placeholder = tf.placeholder(tf.int32,(None, MAX_LENGTH))
+        self.topics_placeholder = tf.placeholder(tf.int32,(None, MAX_LENGTH))
         self.answers_placeholder = tf.placeholder(tf.int32, (None, MAX_LENGTH))
         self.seqs_placeholder = tf.placeholder(tf.float32, (None, self.max_length, 2 * self.num_topics))
         self.seq_lens_placeholder = tf.placeholder(tf.int32, (None))
@@ -94,7 +95,6 @@ class DKTModel(object):
     def data_pipeline(self):
         d = 1.0 - self.dropout_placeholder
         h = self.hidden_size
-        ins = self.seqs_placeholder
 
         cell = tf.contrib.rnn.LSTMCell(h)
         cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob = d)
@@ -113,10 +113,25 @@ class DKTModel(object):
 
         #logit of p(correct) predicted for each time step
         logits = tf.reshape(inner, [-1, self.max_length, self.num_topics])
-        #Probabilities of getting each class at each time correct, for reference
-        self.probs = tf.nn.softmax(logits)
+
         return logits
 
+    def evaluate_logits(self, logits):
+        #Probabilities of getting each class at each time correct, for reference
+        self.probs = tf.nn.softmax(logits)
+        topic_indicators = tf.one_hot(self.topics_placeholder, self.num_topics)
+        topical_probs = tf.reduce_sum(self.probs * topic_indicators, 2)
+        self.guesses = tf.to_int32(tf.round(topical_probs))
+        corrects = tf.to_int32(tf.equal(self.guesses, self.answers_placeholder))
+        masked_corrects = tf.boolean_mask(corrects, self.mask_placeholder)
+        num_correct = tf.reduce_sum(masked_corrects)
+
+        self.auc_score = roc_auc_score(self.answers_placeholder, topical_probs)
+
+        # How many total examples in this batch - for the denominator of # correct
+        self.num_total = tf.reduce_sum(tf.to_int32(self.mask_placeholder))
+
+        return num_correct
 
     def find_loss(self, logits, labels):
         #Find the cross-entropy loss between the correct answer and the
@@ -136,18 +151,29 @@ class DKTModel(object):
 
         with tf.variable_scope("dkt"):
             self.logits = self.data_pipeline()
+            self.num_correct = self.evaluate_logits(self.logits)
 
         self.loss = self.find_loss(self.logits, self.answers_placeholder)
         self.train_op = tf.train.AdamOptimizer().minimize(self.loss)
 
 
-    def train_on_batch(self, session, seqs_batch, lens_batch, masks_batch, answers_batch):
+    def train_on_batch(self, session, seqs_batch, lens_batch, masks_batch, answers_batch, topics_batch):
         feed_dict = {self.seqs_placeholder: seqs_batch,
                      self.seq_lens_placeholder: lens_batch,
                      self.mask_placeholder: masks_batch,
                      self.answers_placeholder: answers_batch}
         _, loss = session.run([self.train_op, self.loss], feed_dict=feed_dict)
         return loss
+
+    def test_on_batch(self, session, seqs_batch, lens_batch, masks_batch, answers_batch, topics_batch):
+        feed_dict = {self.seqs_placeholder: seqs_batch,
+                     self.seq_lens_placeholder: lens_batch,
+                     self.mask_placeholder: masks_batch,
+                     self.answers_placeholder: answers_batch,
+                     self.topics_placeholder: topics_batch}
+        num_correct, num_total, auc = \
+            session.run([self.num_correct, self.num_total, self.auc_score], feed_dict=feed_dict)
+        return num_correct, num_total, auc
 
 
     def __init__(self, num_topics, hidden_size, max_length):
@@ -157,10 +183,6 @@ class DKTModel(object):
 
         self.setup_system()
 
-
-#Get the results out; don't train the model
-def run_model(seqs, lengths, masks):
-    pass
 
 #Takes list of tuples of fields eg [(seqs0, lens0), (seqs1, lens1)...]
 #returns batches of form [seqs_batch, lens_batch, ...]
@@ -184,24 +206,29 @@ def batchify(data):
 
 def train_model(model, session, data):
     train_data = train_data_part(*data)[:]
-    #test_data = zip(test_data_part(*data))[:]
+    test_data = test_data_part(*data)[:]
 
     for epoch in range(MAX_EPOCHS):
         np.random.shuffle(train_data)
-        #np.random.shuffle(test_data)
         train_batches = batchify(train_data)
-        #test_batches = batchify(test_data)
-        #embed()
 
         print "Starting training epoch", epoch
-        for batch_num in range(len(train_batches)):
-            train_batch = train_batches[batch_num]
+        for batch_num, train_batch in enumerate(train_batches):
             loss = model.train_on_batch(session, *train_batch)
             print "On batch number {}, loss is {}".format(batch_num, loss)
 
-        #TODO: This isn't right, fix it
-        #error_rate = model.error_rate(test_batches)
-        #print "Error rate on test set after this epoch: ", error_rate
+        print "Epoch {} complete, evaluating model...".format(epoch)
+        np.random.shuffle(test_data)
+        test_batches = batchify(test_data)
+        total_correct = 0 #total number of examples we got right
+        total_total = 0 #total number of examples we tried on
+        for test_batch in test_batches:
+            num_correct, num_total, auc = model.test_on_batch(session, *test_batch)
+            print auc
+            total_correct += num_correct
+            total_total += num_total
+        print "{} test examples right out of {}, which is {} percent\n".format(
+            total_correct, total_total, 100.0*total_correct/total_total)
 
 
 def main(_):

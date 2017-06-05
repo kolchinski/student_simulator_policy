@@ -18,7 +18,7 @@ TRAIN_SPLIT = 0.7
 
 def read_assistments_data(loc):
     with open(loc) as f:
-        data = [map(int,x.strip().split()) for x in f.readlines()]
+        data = [[int(y) for y in x.strip().split()] for x in f.readlines()]
 
     topic_seqs = defaultdict(list)
     answer_seqs = defaultdict(list)
@@ -35,7 +35,9 @@ def read_assistments_data(loc):
     #np.random.shuffle(keys)
     #return [topic_seqs[k] for k in keys], [answer_seqs[k] for k in keys], max(topics) + 1
     #topics may not be consecutively numbered but assume they are
-    return topic_seqs.values(), answer_seqs.values(), max(topics) + 1
+    order = list(topic_seqs.keys())
+
+    return [topic_seqs[x] for x in order], [answer_seqs[x] for x in order], max(topics) + 1
 
 
 # Takes jagged arrays of topic and answer sequences

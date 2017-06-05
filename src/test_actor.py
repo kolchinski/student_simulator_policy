@@ -22,9 +22,9 @@ if __name__ == '__main__':
         session.run(tf.global_variables_initializer())
 
         for i in range(100):
-            q_hist = np.zeros((batch_size, seq_len))
+            q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
             correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
-            seq_lens = np.ones((batch_size,))
+            seq_lens = np.ones((batch_size,), dtype=np.int32)
 
             for j in range(seq_len):
                 actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, epsilon=0.2)
@@ -33,11 +33,11 @@ if __name__ == '__main__':
                     if critic_scores[an, action] >= 1:
                         continue # already a score of 0
                     if action == 0:
-                        learning[an] = 0.2
-                    else:
                         learning[an] = 0.1
+                    else:
+                        learning[an] = 0.2
                     critic_scores[an, action] += learning[an]
-                    correct_hist[j, an] = (random.random() < critic_scores[an, action])
+                    correct_hist[an, j] = (random.random() < critic_scores[an, action])
 
                 q_hist[:, j] = actions
                 model.apply_grad(session, learning)
@@ -54,17 +54,17 @@ if __name__ == '__main__':
                 if critic_scores[an, action] >= 1:
                     continue # already a score of 0
                 if action == 0:
-                    learning[an] = 0.2
-                else:
                     learning[an] = 0.1
+                else:
+                    learning[an] = 0.2
                 critic_scores[an, action] += learning[an]
-                correct_hist[j, an] = (random.random() < critic_scores[an, action])
+                correct_hist[an, j] = (random.random() < critic_scores[an, action])
 
-            q_hist[j] = actions
+            q_hist[:, j] = actions
             model.apply_grad(session, learning)
             seq_lens += 1
 
-        print("Expected [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]")
+        print("Expected [ 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,]")
         print(q_hist)
 
 

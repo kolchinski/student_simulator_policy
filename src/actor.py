@@ -97,15 +97,16 @@ class Actor(object):
         """
         self._action_applied = True
 
-        if random.random() < epsilon:
-            self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape)
-            return self.next_action
-
         self.action_feed_dict = {
             self.q: question_hist,
             self.answ_correct: correct_hist,
             self.seq_len: np.copy(seq_lens),
         }
+
+        if random.random() < epsilon:
+            self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape)
+            return self.next_action
+
         action_probs, = session.run([self.res], feed_dict=self.action_feed_dict)
         self.next_action = np.argmax(action_probs, axis=1)
         return self.next_action
@@ -118,23 +119,24 @@ class Actor(object):
         self._action_applied = False
 
         # get reference avg performance
-        self._moving_avg = (self._moving_avg * self._avg_counts + np.sum(action_perf)) / self._avg_counts + len(action_perf)
+        self._moving_avg = (self._moving_avg * self._avg_counts + np.sum(action_perf)) / \
+                           (self._avg_counts + len(action_perf))
         self._avg_counts += len(action_perf)
 
         # now normalize to this average perf
-        action_vec = np.zeros((len(action_perf), self.num_cats))
+        action_vec = np.zeros((len(action_perf), self.num_cats), dtype=np.int32)
         action_mask = np.zeros_like(action_vec, dtype=np.bool)
 
         for i, val in enumerate(action_perf - self._moving_avg):
             action_vec[i, self.next_action[i]] = val
             action_mask[i, self.next_action[i]] = True
 
-        action_perf = self.action_feed_dict.update({
+        self.action_feed_dict.update({
             self.action_gradient: action_vec,
             self.action_mask: action_mask
         })
 
-        loss = session.run([self.train_op], feed_dict=action_perf)
+        loss = session.run([self.train_op], feed_dict=self.action_feed_dict)
 
 
 

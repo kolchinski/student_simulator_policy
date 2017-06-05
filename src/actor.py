@@ -85,11 +85,12 @@ class Actor(object):
         self.action_mask = tf.placeholder(tf.bool, [None, categories])
         self.action_gradient = tf.placeholder(tf.float32, [None, categories])
         # the minimize function for the adam loss has a "grad_loss" param that is useful
-        opt = tf.train.AdamOptimizer(1e-3)
+        opt = tf.train.AdamOptimizer(1e-2)
         mask_res = self.res * tf.cast(self.action_mask, dtype=tf.float32)
-        self.train_op = opt.minimize(mask_res, grad_loss=self.action_gradient)
+        self.train_op = opt.minimize(mask_res, grad_loss=-self.action_gradient)
 
-    def get_next_action(self, session, question_hist, correct_hist, seq_lens, epsilon=0):
+    def get_next_action(self, session, question_hist, correct_hist, seq_lens,
+                        collect_action_probs=False):
         """
         :param question_hist: Questions given in the past (ndarray [Batch_sz, N])
         :param correct_hist: Whether the question was answered correctly ([Batch_sz, N] NDarray)
@@ -110,6 +111,10 @@ class Actor(object):
         """
 
         action_probs, = session.run([self.res], feed_dict=self.action_feed_dict)
+
+        if collect_action_probs:
+            self.action_probs.append(action_probs)
+
         # self.next_action = np.argmax(action_probs, axis=1)
         next_a = []
         for single_a_probs in action_probs:
@@ -130,10 +135,11 @@ class Actor(object):
         self._avg_counts += len(action_perf)
 
         # now normalize to this average perf
-        action_vec = np.zeros((len(action_perf), self.num_cats), dtype=np.int32)
+        action_vec = np.zeros((len(action_perf), self.num_cats), dtype=np.float32)
         action_mask = np.zeros_like(action_vec, dtype=np.bool)
+        action_delta = action_perf - self._moving_avg
 
-        for i, val in enumerate(action_perf - self._moving_avg):
+        for i, val in enumerate(action_delta):
             action_vec[i, self.next_action[i]] = val
             action_mask[i, self.next_action[i]] = True
 
@@ -142,7 +148,7 @@ class Actor(object):
             self.action_mask: action_mask
         })
 
-        loss = session.run([self.train_op], feed_dict=self.action_feed_dict)
+        _ = session.run([self.train_op], feed_dict=self.action_feed_dict)
 
 
 

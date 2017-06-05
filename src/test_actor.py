@@ -29,7 +29,7 @@ def run_model(model, session, test=False):
         actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, collect_action_probs=test)
         learning = np.zeros((batch_size,))
         for an, action in enumerate(actions):
-            if critic_scores[an, action] >= 1:
+            if critic_scores[an, action] < 1:
                 if action == 0:
                     learning[an] = 0.1
                 else:

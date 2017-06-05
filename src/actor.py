@@ -103,12 +103,18 @@ class Actor(object):
             self.seq_len: np.copy(seq_lens),
         }
 
+        """
         if random.random() < epsilon:
             self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape)
             return self.next_action
+        """
 
         action_probs, = session.run([self.res], feed_dict=self.action_feed_dict)
-        self.next_action = np.argmax(action_probs, axis=1)
+        # self.next_action = np.argmax(action_probs, axis=1)
+        next_a = []
+        for single_a_probs in action_probs:
+            next_a.append(np.random.choice(self.num_cats, 1, p=single_a_probs)[0])
+        self.next_action = np.asarray(next_a)
         return self.next_action
 
     def apply_grad(self, session, action_perf):

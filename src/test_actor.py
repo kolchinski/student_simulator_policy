@@ -21,13 +21,18 @@ if __name__ == '__main__':
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
 
-        for i in range(100):
+        epsilon = 0.2
+
+        for i in range(1000):
             q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
             correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
             seq_lens = np.ones((batch_size,), dtype=np.int32)
 
+            if i % 200 == 0:
+                epsilon = epsilon/2
+
             for j in range(seq_len):
-                actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, epsilon=0.2)
+                actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, epsilon=epsilon)
                 learning = np.zeros((batch_size,))
                 for an, action in enumerate(actions):
                     if critic_scores[an, action] >= 1:

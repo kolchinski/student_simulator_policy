@@ -85,11 +85,12 @@ class Actor(object):
         self.action_mask = tf.placeholder(tf.bool, [None, categories])
         self.action_gradient = tf.placeholder(tf.float32, [None, categories])
         # the minimize function for the adam loss has a "grad_loss" param that is useful
-        opt = tf.train.AdamOptimizer(1e-3)
+        opt = tf.train.AdamOptimizer(1e-2)
         mask_res = self.res * tf.cast(self.action_mask, dtype=tf.float32)
-        self.train_op = opt.minimize(mask_res, grad_loss=self.action_gradient)
+        self.train_op = opt.minimize(mask_res, grad_loss=-self.action_gradient)
 
-    def get_next_action(self, session, question_hist, correct_hist, seq_lens, epsilon=0):
+    def get_next_action(self, session, question_hist, correct_hist, seq_lens,
+                        collect_action_probs=False, epsilon=0.05):
         """
         :param question_hist: Questions given in the past (ndarray [Batch_sz, N])
         :param correct_hist: Whether the question was answered correctly ([Batch_sz, N] NDarray)
@@ -97,17 +98,26 @@ class Actor(object):
         """
         self._action_applied = True
 
-        if random.random() < epsilon:
-            self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape)
-            return self.next_action
-
         self.action_feed_dict = {
             self.q: question_hist,
             self.answ_correct: correct_hist,
             self.seq_len: np.copy(seq_lens),
         }
+
+        if random.random() < epsilon:
+            self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape)
+            return self.next_action
+
         action_probs, = session.run([self.res], feed_dict=self.action_feed_dict)
-        self.next_action = np.argmax(action_probs, axis=1)
+
+        if collect_action_probs:
+            self.action_probs.append(action_probs)
+
+        # self.next_action = np.argmax(action_probs, axis=1)
+        next_a = []
+        for single_a_probs in action_probs:
+            next_a.append(np.random.choice(self.num_cats, 1, p=single_a_probs)[0])
+        self.next_action = np.asarray(next_a)
         return self.next_action
 
     def apply_grad(self, session, action_perf):
@@ -118,23 +128,25 @@ class Actor(object):
         self._action_applied = False
 
         # get reference avg performance
-        self._moving_avg = (self._moving_avg * self._avg_counts + np.sum(action_perf)) / self._avg_counts + len(action_perf)
+        self._moving_avg = (self._moving_avg * self._avg_counts + np.sum(action_perf)) / \
+                           (self._avg_counts + len(action_perf))
         self._avg_counts += len(action_perf)
 
         # now normalize to this average perf
-        action_vec = np.zeros((len(action_perf), self.num_cats))
+        action_vec = np.zeros((len(action_perf), self.num_cats), dtype=np.float32)
         action_mask = np.zeros_like(action_vec, dtype=np.bool)
+        action_delta = action_perf - self._moving_avg
 
-        for i, val in enumerate(action_perf - self._moving_avg):
+        for i, val in enumerate(action_delta):
             action_vec[i, self.next_action[i]] = val
             action_mask[i, self.next_action[i]] = True
 
-        action_perf = self.action_feed_dict.update({
+        self.action_feed_dict.update({
             self.action_gradient: action_vec,
             self.action_mask: action_mask
         })
 
-        loss = session.run([self.train_op], feed_dict=action_perf)
+        _ = session.run([self.train_op], feed_dict=self.action_feed_dict)
 
 
 

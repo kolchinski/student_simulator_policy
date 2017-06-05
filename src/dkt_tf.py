@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 import tensorflow as tf
 from collections import defaultdict
@@ -48,7 +50,7 @@ def load_data(topic_seqs, answer_seqs, num_topics):
     embeddings = np.zeros((N, MAX_LENGTH, num_topics*2))
     seq_lens = []
 
-    for i in xrange(N):
+    for i in range(N):
         assert(len(topic_seqs[i]) == len(answer_seqs[i]))
         seq_len = len(topic_seqs[i])
         seq_lens.append(seq_len)
@@ -56,7 +58,7 @@ def load_data(topic_seqs, answer_seqs, num_topics):
         topics_padded.append(topic_seqs[i] + padding)
         answers_padded.append(answer_seqs[i] + padding)
         masks.append([1] * seq_len + padding)
-        for j in xrange(seq_len):
+        for j in range(seq_len):
             # Make the one-hot representation; for each sequence and time step,
             # 2*n_topics length vector, one-hot for topic/answer index
             one_hot_index = topic_seqs[i][j] * 2 + answer_seqs[i][j]
@@ -66,20 +68,6 @@ def load_data(topic_seqs, answer_seqs, num_topics):
     topics = topics_padded
     answers = answers_padded
     return embeddings, seq_lens, masks, answers, topics
-
-def train_data_part(seqs, lens, masks, answers, topics):
-    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
-    N = len(seqs)
-    cutoff = int(N * TRAIN_SPLIT)
-    return [(seqs[i], lens[i], masks[i], answers[i], topics[i]) for i in range(cutoff)]
-
-def test_data_part(seqs, lens, masks, answers, topics):
-    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
-    N = len(seqs)
-    cutoff = int(N * TRAIN_SPLIT)
-    return [(seqs[i], lens[i], masks[i], answers[i], topics[i]) for i in range(cutoff, N)]
-
-
 
 class DKTModel(object):
 
@@ -124,6 +112,7 @@ class DKTModel(object):
     def evaluate_probs(self):
         #Probabilities of getting each class at each time correct, for reference
         self.guesses = tf.to_int32(tf.round(self.topical_probs))
+        self.guesses = tf.Print(self.guesses, [self.guesses])
         corrects = tf.to_int32(tf.equal(self.guesses, self.answers_placeholder))
         masked_corrects = tf.boolean_mask(corrects, self.mask_placeholder)
         num_correct = tf.reduce_sum(masked_corrects)
@@ -206,35 +195,42 @@ def batchify(data):
 
 
 def train_model(model, session, data):
-    train_data = train_data_part(*data)[:]
-    test_data = test_data_part(*data)[:]
+    seqs, lens, masks, answers, topics = data
+    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
+    cutoff = int(len(seqs) * TRAIN_SPLIT)
+    zipped_data = list(zip(*data))
+    train_data = zipped_data[:cutoff]
+    test_data = zipped_data[cutoff:]
 
     for epoch in range(MAX_EPOCHS):
         np.random.shuffle(train_data)
         train_batches = batchify(train_data)
 
-        print "Starting training epoch", epoch
+        print("Starting training epoch", epoch)
         for batch_num, train_batch in enumerate(train_batches):
             loss = model.train_on_batch(session, *train_batch)
-            print "On batch number {}, loss is {}".format(batch_num, loss)
+            print("On batch number {}, loss is {}".format(batch_num, loss))
 
-        print "Epoch {} complete, evaluating model...".format(epoch)
-        np.random.shuffle(test_data)
-        test_batches = batchify(test_data)
-        total_correct = 0 #total number of examples we got right
-        total_total = 0 #total number of examples we tried on
-        total_auc = 0.0
-        for test_batch in test_batches:
-            num_correct, num_total, auc = model.test_on_batch(session, *test_batch)
-            total_auc += num_total * auc
-            total_correct += num_correct
-            total_total += num_total
-        print "{} test examples right out of {}, which is {} percent. Mean AUC {}\n".format(
-            total_correct, total_total, 100.0*total_correct/total_total, 1.0*total_auc/total_total)
+        print("Epoch {} complete, evaluating model...".format(epoch))
+        eval_model(test_data, model, session)
+
+def eval_model(test_data, model, session):
+    np.random.shuffle(test_data)
+    test_batches = batchify(test_data)
+    total_correct = 0 #total number of examples we got right
+    total_total = 0 #total number of examples we tried on
+    total_auc = 0.0
+    for test_batch in test_batches:
+        num_correct, num_total, auc = model.test_on_batch(session, *test_batch)
+        total_auc += num_total * auc
+        total_correct += num_correct
+        total_total += num_total
+    print("{} test examples right out of {}, which is {} percent. Mean AUC {}\n".format(
+        total_correct, total_total, 100.0*total_correct/total_total, 1.0*total_auc/total_total))
 
 
 def main(_):
-    print 'tf version', tf.__version__
+    print('tf version', tf.__version__)
 
     topics, answers, num_topics = read_assistments_data(DATA_LOC)
     full_data = load_data(topics, answers, num_topics)

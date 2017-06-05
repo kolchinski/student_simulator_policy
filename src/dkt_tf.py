@@ -114,7 +114,6 @@ class DKTModel(object):
     def evaluate_probs(self):
         #Probabilities of getting each class at each time correct, for reference
         self.guesses = tf.to_int32(tf.round(self.topical_probs))
-        self.guesses = tf.Print(self.guesses, [self.guesses])
         corrects = tf.to_int32(tf.equal(self.guesses, self.answers_placeholder))
         masked_corrects = tf.boolean_mask(corrects, self.mask_placeholder)
         num_correct = tf.reduce_sum(masked_corrects)

@@ -68,13 +68,13 @@ def train_data_part(seqs, lens, masks, answers):
     assert(len(seqs) == len(lens) == len(masks) == len(answers))
     N = len(seqs)
     cutoff = int(N * TRAIN_SPLIT)
-    return seqs[:cutoff], lens[:cutoff], masks[:cutoff], answers[:cutoff]
+    return [(seqs[i], lens[i], masks[i], answers[i]) for i in range(cutoff)]
 
-def test_data_part(seqs, lens, masks, answers):
-    assert(len(seqs) == len(lens) == len(masks) == len(answers))
-    N = len(seqs)
-    cutoff = int(N * TRAIN_SPLIT)
-    return seqs[cutoff:], lens[cutoff:], masks[cutoff:], answers[:cutoff]
+#def test_data_part(seqs, lens, masks, answers):
+#    assert(len(seqs) == len(lens) == len(masks) == len(answers))
+#    N = len(seqs)
+#    cutoff = int(N * TRAIN_SPLIT)
+#    return seqs[cutoff:], lens[cutoff:], masks[cutoff:], answers[:cutoff]
 
 
 
@@ -162,24 +162,36 @@ class DKTModel(object):
 def run_model(seqs, lengths, masks):
     pass
 
+#Takes list of tuples of fields eg [(seqs0, lens0), (seqs1, lens1)...]
+#returns batches of form [seqs_batch, lens_batch, ...]
 def batchify(data):
     num_batches = int(np.ceil(len(data) / BATCH_SIZE))
+    num_fields = len(data[0])
+
     batches = []
     for i in range(num_batches):
         #batch up all the different sequences of data (seqs, lens, etc)
-        batches.append([d[i*BATCH_SIZE:(i+1)*BATCH_SIZE] for d in data])
+        batch_data = data[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
+
+        batch = [[] for i in range(len(batch_data[0]))]
+        for b in batch_data:
+            for j in range(num_fields):
+                batch[j].append(b[j])
+        batches.append(batch)
+
     return batches
 
 
 def train_model(model, session, data):
     train_data = train_data_part(*data)[:]
-    test_data = test_data_part(*data)[:]
+    #test_data = zip(test_data_part(*data))[:]
 
     for epoch in range(MAX_EPOCHS):
         np.random.shuffle(train_data)
-        np.random.shuffle(test_data)
+        #np.random.shuffle(test_data)
         train_batches = batchify(train_data)
-        test_batches = batchify(test_data)
+        #test_batches = batchify(test_data)
+        #embed()
 
         print "Starting training epoch", epoch
         for batch_num in range(len(train_batches)):

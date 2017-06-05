@@ -62,28 +62,32 @@ class Actor(object):
         self.answ_correct = tf.placeholder(tf.float32, (None, max_seq_len))
         self.seq_len = tf.placeholder(tf.int32, (None))
         with tf.variable_scope("Actor"):
-            embed = tf.get_variable("embed", (categories, cat_vec_len), xav_init)
+            embed = tf.get_variable("embed", (categories, cat_vec_len), dtype=tf.float32
+                                    , initializer=xav_init)
             q_embed = tf.nn.embedding_lookup(embed, self.q)
 
-            lstm_in = tf.concat([q_embed, self.answ_correct], axis=1)
-            cell = tf.nn.rnn_cell.LSTMCell(hidden_sz)
-            cell = tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob = 1.0 - dropout)
+            answ_correct_3d = tf.reshape(self.answ_correct, (-1, max_seq_len, 1))
+            lstm_in = tf.concat([q_embed, answ_correct_3d], axis=2)
+            cell = tf.contrib.rnn.LSTMCell(hidden_sz)
+            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=1.0 - dropout)
 
             with tf.variable_scope("LSTM1"):
-                lstm1_out, lstm1_states = tf.nn.dynamic_rnn(cell=cell, inputs=lstm_in, sequence_length=self.seq_len,
+                lstm1_out, lstm1_state = tf.nn.dynamic_rnn(cell=cell, inputs=lstm_in, sequence_length=self.seq_len,
                                                             dtype=tf.float32, swap_memory=True)
 
-            hidden_1 = layers.fully_connected(lstm1_out, num_outputs=categories, scope="FC1")
+            hidden_1 = layers.fully_connected(lstm1_state.h, num_outputs=categories, scope="FC1")
             self.final_hid = layers.fully_connected(hidden_1, num_outputs=categories,
                                                     activation_fn=None, scope="FC2")
             self.res = tf.nn.softmax(self.final_hid)
 
 
+        # now build the loss and gradient backprop
         self.action_mask = tf.placeholder(tf.bool, [None, categories])
         self.action_gradient = tf.placeholder(tf.float32, [None, categories])
-        # the minimize function for the adam loss has a "grad_loss" param taht is useful
+        # the minimize function for the adam loss has a "grad_loss" param that is useful
         opt = tf.train.AdamOptimizer(1e-3)
-        self.train_op = opt.minimize(self.res * self.action_mask, self.action_gradient)
+        mask_res = self.res * tf.cast(self.action_mask, dtype=tf.float32)
+        self.train_op = opt.minimize(mask_res, grad_loss=self.action_gradient)
 
     def get_next_action(self, session, question_hist, correct_hist, seq_lens, epsilon=0):
         """
@@ -94,7 +98,7 @@ class Actor(object):
         self._action_applied = True
 
         if random.random() < epsilon:
-            self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape())
+            self.next_action = np.random.choice(np.arange(self.num_cats), seq_lens.shape)
             return self.next_action
 
         self.action_feed_dict = {

@@ -7,7 +7,7 @@ from IPython import embed
 import matplotlib.pyplot as plt
 
 
-DATA_LOC = './assistments_fake.txt'
+DATA_LOC = './assistments.txt'
 MAX_LENGTH = 100
 LR = 0.01
 HIDDEN_SIZE = 200
@@ -60,11 +60,11 @@ def load_data(topic_seqs, answer_seqs, num_topics):
         topics_padded.append(topic_seqs[i] + padding)
         answers_padded.append(answer_seqs[i] + padding)
         masks.append([1] * seq_len + padding)
-        for j in range(seq_len):
+        for j in range(seq_len - 1):
             # Make the one-hot representation; for each sequence and time step,
             # 2*n_topics length vector, one-hot for topic/answer index
             one_hot_index = topic_seqs[i][j] * 2 + answer_seqs[i][j]
-            embeddings[i][j][one_hot_index] = 1
+            embeddings[i][j + 1][one_hot_index] = 1
 
     #padded topics and answers not actually used, could remove?
     topics = topics_padded

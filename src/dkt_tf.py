@@ -225,15 +225,27 @@ def batchify(data):
     return batches
 
 
+CKPT_FILE = './models.ckpt'
 #Trains 2 DKT models, one on each half of the data
 def train_paired_models(session, data, num_topics):
+
     with tf.variable_scope("model1"):
         model1 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
     with tf.variable_scope("model2"):
         model2 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
 
-    session.run(tf.global_variables_initializer())
     session.run(tf.local_variables_initializer())
+
+    saver = tf.train.Saver()
+    try:
+        saver.restore(session, CKPT_FILE)
+        return model1, model2
+    except:
+        pass
+
+
+
+    session.run(tf.global_variables_initializer())
 
     lens, masks, answers, topics = data
     assert(len(lens) == len(masks) == len(answers) == len(topics))
@@ -267,11 +279,23 @@ def train_paired_models(session, data, num_topics):
         eval_model(first_data, model2, session)
 
 
+    saver.save(session, CKPT_FILE)
+
     #return model1, first_seq_lens, first_answers, first_topics, first_masks, first_v_hats, \
     #    model2, second_seq_lens, second_answers, second_topics, second_masks, second_v_hats,
     return model1, model2
 
 
+def test_paired_models(session, data, model1, model2):
+    zipped_data = list(zip(*data))
+    cutoff = int(len(data[0]) * 0.5)
+    first_data = zipped_data[:cutoff]
+    second_data = zipped_data[cutoff:]
+
+    print("Evaluating first model")
+    eval_model(second_data, model1, session)
+    print("Evaluating second model")
+    eval_model(first_data, model2, session)
 
 def train_model(model, session, data):
     lens, masks, answers, topics = data
@@ -324,7 +348,8 @@ def main(_):
         session.run(tf.local_variables_initializer())
         #train_model(model, session, full_data)
         model1, model2 = train_paired_models(session, full_data, num_topics)
-        embed()
+        test_paired_models(session, full_data, model1, model2)
+        #embed()
 
 
 

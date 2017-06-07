@@ -30,16 +30,20 @@ def run_model(model, session, test=False):
         actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, epsilon=0, **extra_args)
         learning = np.zeros((batch_size,))
         for an, action in enumerate(actions):
-            if critic_scores[an, action] < 1:
-                if action == 0:
-                    learning[an] = 0.1
-                else:
-                    # learning[an] = 0.2
-                    learning[an] = 0.25 - 0.02 * j  # more useful to learn early
-                critic_scores[an, action] += learning[an]
-            else:
-                assert learning[an] == 0
+            # apply critic policy
+            # critic_policy(critic_scores, learning, action, an)
+            # original_critic_score = critic_scores[an, action]
+
+            critic_learn_dep_2(critic_scores, learning, action, an)
             correct_hist[an, j] = (random.random() < critic_scores[an, action])
+
+            # if original_critic_score > 1:
+            #     assert(original_critic_score == critic_scores[an, action])
+
+            # cap learning at 1
+            if critic_scores[an, action] >= 1:
+                correct_hist[an, j] -= critic_scores[an, action] - 1
+                critic_scores[an, action] = 1
 
         q_hist[:, j] = actions
         if not test: model.apply_grad(session, learning)
@@ -58,6 +62,47 @@ def run_model(model, session, test=False):
         # print("All Probabilities:")
         # print(model.action_probs)
 
+
+def critic_policy(critic_scores, learning, action, an):
+    if critic_scores[an, action] < 1:
+        if action == 0:
+            learning[an] = 0.1
+        else:
+            # learning[an] = 0.2
+            learning[an] = 0.25 - 0.02 * j  # more useful to learn early
+        critic_scores[an, action] += learning[an]
+    else:
+        assert learning[an] == 0
+
+
+def critic_learn_dep(critic_scores, learning, action, an):
+    if critic_scores[an, action] < 1:
+        if action == 0:
+            learning[an] = 0.45  # need to cap learning at 1
+        else:
+            # learning[an] = 0.2
+            if critic_scores[an, 0] >= 0.8:
+                learning[an] = 0.2
+            else:
+                learning[an] = 0
+        critic_scores[an, action] += learning[an]
+    else:
+        assert learning[an] == 0
+
+
+def critic_learn_dep_2(critic_scores, learning, action, an):
+    if critic_scores[an, action] < 1:
+        if action == 0:
+            learning[an] = 0.2  # need to cap learning at 1
+        else:
+            # learning[an] = 0.2
+            if critic_scores[an, 0] >= 0.35:
+                learning[an] = 0.4
+            else:
+                learning[an] = 0
+        critic_scores[an, action] += learning[an]
+    else:
+        assert learning[an] == 0
 
 def test_system():
     model = actor.Actor(categories=2, cat_vec_len=seq_len, seq_len=seq_len)

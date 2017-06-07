@@ -34,7 +34,7 @@ def run_model(model, session, test=False):
                 if action == 0:
                     learning[an] = 0.1
                 else:
-                    # learning[an] = 0.4
+                    # learning[an] = 0.2
                     learning[an] = 0.25 - 0.02 * j  # more useful to learn early
                 critic_scores[an, action] += learning[an]
             else:
@@ -64,7 +64,7 @@ def test_system():
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
-        for i in range(300):
+        for i in range(600):
             if i % 20 == 0:
                 run_model(model, session, test=True)  # see behavior over time.
             run_model(model, session)

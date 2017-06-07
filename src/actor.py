@@ -70,8 +70,8 @@ class Actor(object):
                 lstm1_out, lstm1_state = tf.nn.dynamic_rnn(cell=cell, inputs=lstm_in, sequence_length=self.seq_len,
                                                             dtype=tf.float32, swap_memory=True)
 
-            hidden_1 = layers.fully_connected(lstm1_state.h, num_outputs=categories * 4, scope="FC1")
-            self.final_hid = layers.fully_connected(hidden_1, num_outputs=categories,
+            # hidden_1 = layers.fully_connected(lstm1_state.h, num_outputs=categories * 4, scope="FC1")
+            self.final_hid = layers.fully_connected(lstm1_state.h, num_outputs=categories,
                                                     activation_fn=None, scope="FC2")
             self.res = tf.nn.softmax(self.final_hid)
 
@@ -80,7 +80,8 @@ class Actor(object):
         self.action_mask = tf.placeholder(tf.bool, [None, categories])
         self.action_gradient = tf.placeholder(tf.float32, [None, categories])
         # the minimize function for the adam loss has a "grad_loss" param that is useful
-        opt = tf.train.AdamOptimizer(1e-3)
+        # opt = tf.train.GradientDescentOptimizer(1e-3)
+        opt = tf.train.AdamOptimizer(5e-4)
         mask_res = self.res * tf.cast(self.action_mask, dtype=tf.float32)
         # self.train_op = opt.minimize(mask_res, grad_loss=-self.action_gradient / self.res)
         self.train_op = opt.minimize(tf.reduce_sum(-tf.log(self.res) * self.action_gradient))

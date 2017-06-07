@@ -185,6 +185,15 @@ class DKTModel(object):
             session.run([self.num_correct, self.num_total, self.auc_op, self.v_hats], feed_dict=feed_dict)
         return num_correct, num_total, auc, v_hats
 
+    def next_probs(self, session, lens_batch, masks_batch, answers_batch, topics_batch):
+        feed_dict = {
+            self.seq_lens_placeholder: lens_batch,
+            self.mask_placeholder: masks_batch,
+            self.answers_placeholder: answers_batch,
+            self.topics_placeholder: topics_batch}
+        post_probs = session.run([self.post_probs], feed_dict=feed_dict)
+        return post_probs
+
 
     def __init__(self, num_topics, hidden_size, max_length):
         self.num_topics = num_topics
@@ -215,25 +224,21 @@ def batchify(data):
 
 
 #Trains 2 DKT models, one on each half of the data
-def train_paired_models(model1, model2, session, data):
-    seqs, lens, masks, answers, topics = data
-    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
-    cutoff = int(len(seqs) * 0.5)
+def train_paired_models(session, data, num_topics):
+    with tf.variable_scope("model1"):
+        model1 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
+    with tf.variable_scope("model2"):
+        model2 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
+
+    session.run(tf.global_variables_initializer())
+    session.run(tf.local_variables_initializer())
+
+    lens, masks, answers, topics = data
+    assert(len(lens) == len(masks) == len(answers) == len(topics))
+    cutoff = int(len(lens) * 0.5)
     zipped_data = list(zip(*data))
     first_data = zipped_data[:cutoff]
     second_data = zipped_data[cutoff:]
-
-    first_v_hats = []
-    first_topics = []
-    first_answers = []
-    first_masks = []
-    first_seq_lens = []
-
-    second_v_hats = []
-    second_topics = []
-    second_answers = []
-    second_seq_lens = []
-    second_masks = []
 
     for epoch in range(1):
         np.random.shuffle(first_data)
@@ -246,13 +251,6 @@ def train_paired_models(model1, model2, session, data):
 
         print("Epoch {} complete, evaluating model...".format(epoch))
         eval_model(second_data, model1, session)
-    for train_batch in train_batches:
-        num_correct, num_total, auc, v_hats = model1.test_on_batch(session, *train_batch)
-        first_v_hats += list(v_hats)
-        first_topics += train_batch[4]
-        first_answers += train_batch[3]
-        first_masks += train_batch[2]
-        first_seq_lens += train_batch[1]
 
     for epoch in range(1):
         np.random.shuffle(second_data)
@@ -265,16 +263,11 @@ def train_paired_models(model1, model2, session, data):
 
         print("Epoch {} complete, evaluating model...".format(epoch))
         eval_model(first_data, model2, session)
-    for train_batch in train_batches:
-        num_correct, num_total, auc, v_hats = model2.test_on_batch(session, *train_batch)
-        second_v_hats += list(v_hats)
-        second_topics += train_batch[4]
-        second_answers += train_batch[3]
-        second_masks += train_batch[2]
-        second_seq_lens += train_batch[1]
 
-    return model1, first_seq_lens, first_answers, first_topics, first_masks, first_v_hats, \
-        model2, second_seq_lens, second_answers, second_topics, second_masks, second_v_hats,
+
+    #return model1, first_seq_lens, first_answers, first_topics, first_masks, first_v_hats, \
+    #    model2, second_seq_lens, second_answers, second_topics, second_masks, second_v_hats,
+    return model1, model2
 
 
 
@@ -321,19 +314,15 @@ def main(_):
 
     model = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
 
-    with tf.variable_scope("model1"):
-        model1 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
-    with tf.variable_scope("model2"):
-        model2 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
         #We need to explicitly initialize local variables to use
         #TensorFlow's AUC function for some reason...
         session.run(tf.local_variables_initializer())
-        train_model(model, session, full_data)
-        #response_data = train_paired_models(model1, model2, session, full_data)
-        #embed()
+        #train_model(model, session, full_data)
+        model1, model2 = train_paired_models(session, full_data, num_topics)
+        embed()
 
 
 

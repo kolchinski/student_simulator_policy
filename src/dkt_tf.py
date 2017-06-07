@@ -95,6 +95,10 @@ class DKTModel(object):
         cell = tf.contrib.rnn.LSTMCell(h)
         cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob = d)
 
+
+        #Can use this instead of seqs_placeholder
+        #self.seqs = tf.one_hot(self.topics_placeholder * 2 + self.answers_placeholder, 2*self.num_topics)
+
         outputs, hidden_states = tf.nn.dynamic_rnn(
             cell=cell, inputs=self.seqs_placeholder,
             sequence_length=self.seq_lens_placeholder, dtype=tf.float32,
@@ -109,6 +113,7 @@ class DKTModel(object):
 
         # p(correct) predicted for each time step, for each topic class
         self.probs = tf.sigmoid(tf.reshape(inner, [-1, self.max_length, self.num_topics]))
+        self.v_hats = tf.reduce_sum(self.probs, 2)
 
         topic_indicators = tf.one_hot(self.topics_placeholder, self.num_topics)
         self.topical_probs = tf.reduce_sum(self.probs * topic_indicators, 2)
@@ -166,9 +171,9 @@ class DKTModel(object):
                      self.mask_placeholder: masks_batch,
                      self.answers_placeholder: answers_batch,
                      self.topics_placeholder: topics_batch}
-        num_correct, num_total, auc = \
-            session.run([self.num_correct, self.num_total, self.auc_op], feed_dict=feed_dict)
-        return num_correct, num_total, auc
+        num_correct, num_total, auc, v_hats = \
+            session.run([self.num_correct, self.num_total, self.auc_op, self.v_hats], feed_dict=feed_dict)
+        return num_correct, num_total, auc, v_hats
 
 
     def __init__(self, num_topics, hidden_size, max_length):
@@ -199,6 +204,70 @@ def batchify(data):
     return batches
 
 
+#Trains 2 DKT models, one on each half of the data
+def train_paired_models(model1, model2, session, data):
+    seqs, lens, masks, answers, topics = data
+    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
+    cutoff = int(len(seqs) * 0.5)
+    zipped_data = list(zip(*data))
+    first_data = zipped_data[:cutoff]
+    second_data = zipped_data[cutoff:]
+
+    first_v_hats = []
+    first_topics = []
+    first_answers = []
+    first_masks = []
+    first_seq_lens = []
+
+    second_v_hats = []
+    second_topics = []
+    second_answers = []
+    second_seq_lens = []
+    second_masks = []
+
+    for epoch in range(1):
+        np.random.shuffle(first_data)
+        train_batches = batchify(first_data)
+
+        print("First model; starting training epoch", epoch)
+        for batch_num, train_batch in enumerate(train_batches):
+            loss = model1.train_on_batch(session, *train_batch)
+            print("On batch number {}, loss is {}".format(batch_num, loss))
+
+        print("Epoch {} complete, evaluating model...".format(epoch))
+        eval_model(second_data, model1, session)
+    for train_batch in train_batches:
+        num_correct, num_total, auc, v_hats = model1.test_on_batch(session, *train_batch)
+        first_v_hats += list(v_hats)
+        first_topics += train_batch[4]
+        first_answers += train_batch[3]
+        first_masks += train_batch[2]
+        first_seq_lens += train_batch[1]
+
+    for epoch in range(1):
+        np.random.shuffle(second_data)
+        train_batches = batchify(second_data)
+
+        print("Second model; starting training epoch", epoch)
+        for batch_num, train_batch in enumerate(train_batches):
+            loss = model2.train_on_batch(session, *train_batch)
+            print("On batch number {}, loss is {}".format(batch_num, loss))
+
+        print("Epoch {} complete, evaluating model...".format(epoch))
+        eval_model(first_data, model2, session)
+    for train_batch in train_batches:
+        num_correct, num_total, auc, v_hats = model2.test_on_batch(session, *train_batch)
+        second_v_hats += list(v_hats)
+        second_topics += train_batch[4]
+        second_answers += train_batch[3]
+        second_masks += train_batch[2]
+        second_seq_lens += train_batch[1]
+
+    return model1, first_seq_lens, first_answers, first_topics, first_masks, first_v_hats, \
+        model2, second_seq_lens, second_answers, second_topics, second_masks, second_v_hats,
+
+
+
 def train_model(model, session, data):
     seqs, lens, masks, answers, topics = data
     assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
@@ -226,7 +295,7 @@ def eval_model(test_data, model, session):
     total_total = 0 #total number of examples we tried on
     total_auc = 0.0
     for test_batch in test_batches:
-        num_correct, num_total, auc = model.test_on_batch(session, *test_batch)
+        num_correct, num_total, auc, v_hats = model.test_on_batch(session, *test_batch)
         total_auc += num_total * auc
         total_correct += num_correct
         total_total += num_total
@@ -239,14 +308,19 @@ def main(_):
 
     topics, answers, num_topics = read_assistments_data(DATA_LOC)
     full_data = load_data(topics, answers, num_topics)
-    model = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
+    with tf.variable_scope("model1"):
+        model1 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
+    with tf.variable_scope("model2"):
+        model2 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
         #We need to explicitly initialize local variables to use
         #TensorFlow's AUC function for some reason...
         session.run(tf.local_variables_initializer())
-        train_model(model, session, full_data)
+        #train_model(model, session, full_data)
+        response_data = train_paired_models(model1, model2, session, full_data)
+        embed()
 
 
 

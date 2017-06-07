@@ -185,6 +185,8 @@ class DKTModel(object):
             session.run([self.num_correct, self.num_total, self.auc_op, self.v_hats], feed_dict=feed_dict)
         return num_correct, num_total, auc, v_hats
 
+    # Returns array of predicted next probabilities of correctness
+    # Shape 1 x batch size x 1 x num_topics
     def next_probs(self, session, lens_batch, masks_batch, answers_batch, topics_batch):
         feed_dict = {
             self.seq_lens_placeholder: lens_batch,

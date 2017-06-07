@@ -193,7 +193,7 @@ class DKTModel(object):
             self.mask_placeholder: masks_batch,
             self.answers_placeholder: answers_batch,
             self.topics_placeholder: topics_batch}
-        post_probs = session.run([self.post_probs], feed_dict=feed_dict)
+        post_probs, = session.run([self.post_probs], feed_dict=feed_dict)
         return post_probs
 
 

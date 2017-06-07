@@ -1,5 +1,3 @@
-
-
 import tensorflow as tf
 import numpy as np
 import random
@@ -8,8 +6,16 @@ import logging
 import actor
 import dkt_tf
 
-batch_size = 16
-seq_len = 30
+MAX_LENGTH = 100
+LR = 0.001
+HIDDEN_SIZE = 200
+BATCH_SIZE = 32
+MAX_EPOCHS = 10
+DROPOUT = 0.3
+TRAIN_SPLIT = 0.7
+
+batch_size = BATCH_SIZE
+seq_len = MAX_LENGTH
 PRINT_EVERY = 10
 
 def run_model(model, session, critic_fn, test=False):
@@ -17,7 +23,7 @@ def run_model(model, session, critic_fn, test=False):
     runs an iteration of the actor model
     :return avg_learning: the average amount that the actor learned in an episode
     """
-    q_hist = np.zeros((batch_size, seq_len))
+    q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
     correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
     seq_lens = np.ones((batch_size,), dtype=np.int32)
     total_learning = np.zeros((batch_size, seq_len))  # all of the individual learning amounts for an episode
@@ -52,24 +58,24 @@ class CriticWrapper(object):
         self.critic = critic
 
     def get_next_info(self, session, lens, prev_answers, prev_topics):
-        tiled_range = np.arange(MAX_LENGTH).reshape((1, -1)).tile((BATCH_SIZE, 1))
-        mask = (tiled_range < lens)
-        new_probs = self.critic.next_probs(session, lens, mask, prev_answers, prev_topics)
-        new_correctness = np.random.random(new_probs.shape) < new_probs
+        tiled_range = np.tile(np.arange(MAX_LENGTH).reshape((1, -1)), (BATCH_SIZE, 1))
+        mask = (tiled_range < lens.reshape((-1, 1)))
+
+        new_probs_raw = self.critic.next_probs(session, lens, mask, prev_answers, prev_topics)
+        B, _, cats = new_probs_raw.shape
+        new_probs = new_probs_raw.reshape((B, cats))
+
+        B_rng = np.arange(B, dtype=np.int32)
+        cur_topics = prev_topics[B_rng, seq_len - 1]
+        topic_probs = new_probs[B_rng, cur_topics]
+
+        # print(new_probs.shape, topic_probs.shape)
+        new_correctness = np.random.random(topic_probs.shape) < topic_probs
         return new_probs.sum(axis=1), new_correctness
 
 
-MAX_LENGTH = 100
-LR = 0.001
-HIDDEN_SIZE = 200
-BATCH_SIZE = 32
-MAX_EPOCHS = 10
-DROPOUT = 0.3
-TRAIN_SPLIT = 0.7
-
-
 def main(actor_episodes=10000):
-    logging.log('tf version', tf.__version__)
+    logging.info("tf version " + tf.__version__)
 
     # initialize critic stuff
     topics, answers, num_topics = dkt_tf.read_assistments_data(dkt_tf.DATA_LOC)

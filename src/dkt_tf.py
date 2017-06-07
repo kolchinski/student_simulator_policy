@@ -49,7 +49,7 @@ def load_data(topic_seqs, answer_seqs, num_topics):
     topics_padded = []
     answers_padded = []
     masks = []
-    embeddings = np.zeros((N, MAX_LENGTH, num_topics*2))
+    embeddings = np.zeros((N, MAX_LENGTH + 1, num_topics*2))
     seq_lens = []
 
     for i in range(N):
@@ -64,7 +64,7 @@ def load_data(topic_seqs, answer_seqs, num_topics):
         #probabilities of correct answers *after* the sequence ends as well.
         #This requires modifying some shapes as well as doing one more step
         #in this loop
-        for j in range(seq_len - 1):
+        for j in range(seq_len):
             # Make the one-hot representation; for each sequence and time step,
             # 2*n_topics length vector, one-hot for topic/answer index
             one_hot_index = topic_seqs[i][j] * 2 + answer_seqs[i][j]
@@ -73,7 +73,8 @@ def load_data(topic_seqs, answer_seqs, num_topics):
     #padded topics and answers not actually used, could remove?
     topics = topics_padded
     answers = answers_padded
-    return embeddings, seq_lens, masks, answers, topics
+    #return embeddings, seq_lens, masks, answers, topics
+    return seq_lens, masks, answers, topics
 
 class DKTModel(object):
 
@@ -81,7 +82,7 @@ class DKTModel(object):
     def add_placeholders(self):
         self.topics_placeholder = tf.placeholder(tf.int32,(None, MAX_LENGTH))
         self.answers_placeholder = tf.placeholder(tf.int32, (None, MAX_LENGTH))
-        self.seqs_placeholder = tf.placeholder(tf.float32, (None, self.max_length, 2 * self.num_topics))
+        #self.seqs_placeholder = tf.placeholder(tf.float32, (None, self.max_length, 2 * self.num_topics))
         self.seq_lens_placeholder = tf.placeholder(tf.int32, (None))
         self.mask_placeholder = tf.placeholder(tf.bool, (None, self.max_length))
         self.dropout_placeholder = tf.placeholder_with_default(DROPOUT, ())
@@ -97,11 +98,14 @@ class DKTModel(object):
 
 
         #Can use this instead of seqs_placeholder
-        #self.seqs = tf.one_hot(self.topics_placeholder * 2 + self.answers_placeholder, 2*self.num_topics)
+        obs_seqs = tf.one_hot(self.topics_placeholder * 2 + self.answers_placeholder, 2*self.num_topics)
+        batch_size = tf.shape(obs_seqs)[0]
+
+        self.seqs = tf.concat([tf.zeros((batch_size, 1, 2*self.num_topics)), obs_seqs], 1)
 
         outputs, hidden_states = tf.nn.dynamic_rnn(
-            cell=cell, inputs=self.seqs_placeholder,
-            sequence_length=self.seq_lens_placeholder, dtype=tf.float32,
+            cell=cell, inputs=self.seqs,
+            sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
             swap_memory=True)
 
 
@@ -112,7 +116,13 @@ class DKTModel(object):
         inner = tf.matmul(outputs_flat, w) + b
 
         # p(correct) predicted for each time step, for each topic class
-        self.probs = tf.sigmoid(tf.reshape(inner, [-1, self.max_length, self.num_topics]))
+        self.all_probs = tf.sigmoid(tf.reshape(inner, [-1, self.max_length + 1, self.num_topics]))
+
+        #Slice up the probabilities so that the last ones (for the *next*
+        #questions encountered) are in a separate op
+        self.post_probs = tf.slice(self.all_probs, [0,self.max_length,0], [-1, -1, -1])
+        self.probs = tf.slice(self.all_probs, [0,0,0], [-1, self.max_length, -1])
+
         self.v_hats = tf.reduce_sum(self.probs, 2)
 
         topic_indicators = tf.one_hot(self.topics_placeholder, self.num_topics)
@@ -156,8 +166,8 @@ class DKTModel(object):
         self.saver = tf.train.Saver()
 
 
-    def train_on_batch(self, session, seqs_batch, lens_batch, masks_batch, answers_batch, topics_batch):
-        feed_dict = {self.seqs_placeholder: seqs_batch,
+    def train_on_batch(self, session, lens_batch, masks_batch, answers_batch, topics_batch):
+        feed_dict = {#self.seqs_placeholder: seqs_batch,
                      self.seq_lens_placeholder: lens_batch,
                      self.mask_placeholder: masks_batch,
                      self.answers_placeholder: answers_batch,
@@ -165,8 +175,8 @@ class DKTModel(object):
         _, loss = session.run([self.train_op, self.loss], feed_dict=feed_dict)
         return loss
 
-    def test_on_batch(self, session, seqs_batch, lens_batch, masks_batch, answers_batch, topics_batch):
-        feed_dict = {self.seqs_placeholder: seqs_batch,
+    def test_on_batch(self, session, lens_batch, masks_batch, answers_batch, topics_batch):
+        feed_dict = {#self.seqs_placeholder: seqs_batch,
                      self.seq_lens_placeholder: lens_batch,
                      self.mask_placeholder: masks_batch,
                      self.answers_placeholder: answers_batch,
@@ -269,9 +279,9 @@ def train_paired_models(model1, model2, session, data):
 
 
 def train_model(model, session, data):
-    seqs, lens, masks, answers, topics = data
-    assert(len(seqs) == len(lens) == len(masks) == len(answers) == len(topics))
-    cutoff = int(len(seqs) * TRAIN_SPLIT)
+    lens, masks, answers, topics = data
+    assert(len(lens) == len(masks) == len(answers) == len(topics))
+    cutoff = int(len(lens) * TRAIN_SPLIT)
     zipped_data = list(zip(*data))
     train_data = zipped_data[:cutoff]
     test_data = zipped_data[cutoff:]
@@ -308,6 +318,9 @@ def main(_):
 
     topics, answers, num_topics = read_assistments_data(DATA_LOC)
     full_data = load_data(topics, answers, num_topics)
+
+    model = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
+
     with tf.variable_scope("model1"):
         model1 = DKTModel(num_topics, HIDDEN_SIZE, MAX_LENGTH)
     with tf.variable_scope("model2"):
@@ -318,9 +331,9 @@ def main(_):
         #We need to explicitly initialize local variables to use
         #TensorFlow's AUC function for some reason...
         session.run(tf.local_variables_initializer())
-        #train_model(model, session, full_data)
-        response_data = train_paired_models(model1, model2, session, full_data)
-        embed()
+        train_model(model, session, full_data)
+        #response_data = train_paired_models(model1, model2, session, full_data)
+        #embed()
 
 
 

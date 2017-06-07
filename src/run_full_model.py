@@ -9,7 +9,7 @@ import dkt_tf
 MAX_LENGTH = 100
 LR = 0.001
 HIDDEN_SIZE = 200
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 MAX_EPOCHS = 10
 DROPOUT = 0.3
 TRAIN_SPLIT = 0.7
@@ -74,7 +74,7 @@ class CriticWrapper(object):
         return new_probs.sum(axis=1), new_correctness
 
 
-def main(actor_episodes=10000):
+def main(actor_episodes=1000):
     logging.info("tf version " + tf.__version__)
 
     # initialize critic stuff
@@ -110,6 +110,8 @@ def main(actor_episodes=10000):
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s    %(message)s', datefmt='%I:%M:%S', level=logging.INFO)
     file_handler = logging.FileHandler("model_perf.log")
-    file_handler.setFormatter(logging.Formatter(fmt='%(asctime)s    %(message)s', datefmt='%I:%M:%S'))
+    formatter = logging.Formatter(fmt='%(asctime)s    %(message)s', datefmt='%I:%M:%S')
+    logging.getLogger().handlers[0].setFormatter(formatter)
+    file_handler.setFormatter(formatter)
     logging.getLogger().addHandler(file_handler)
     main()

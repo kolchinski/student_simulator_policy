@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 DATA_LOC = './assistments.txt'
 MAX_LENGTH = 100
-LR = 0.01
+LR = 0.001
 HIDDEN_SIZE = 200
 BATCH_SIZE = 32
 MAX_EPOCHS = 10
@@ -60,6 +60,10 @@ def load_data(topic_seqs, answer_seqs, num_topics):
         topics_padded.append(topic_seqs[i] + padding)
         answers_padded.append(answer_seqs[i] + padding)
         masks.append([1] * seq_len + padding)
+        #TODO: we can actually modify the code so that we predict the
+        #probabilities of correct answers *after* the sequence ends as well.
+        #This requires modifying some shapes as well as doing one more step
+        #in this loop
         for j in range(seq_len - 1):
             # Make the one-hot representation; for each sequence and time step,
             # 2*n_topics length vector, one-hot for topic/answer index

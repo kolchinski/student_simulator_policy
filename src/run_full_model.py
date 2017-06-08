@@ -14,8 +14,6 @@ MAX_EPOCHS = 10
 DROPOUT = 0.3
 TRAIN_SPLIT = 0.7
 
-batch_size = BATCH_SIZE
-seq_len = MAX_LENGTH
 PRINT_EVERY = 10
 
 def run_model(model, session, critic_fn, test=False):
@@ -23,10 +21,15 @@ def run_model(model, session, critic_fn, test=False):
     runs an iteration of the actor model
     :return avg_learning: the average amount that the actor learned in an episode
     """
+
+    batch_size = BATCH_SIZE
+    seq_len = MAX_LENGTH
+
     q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
     correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
     seq_lens = np.ones((batch_size,), dtype=np.int32)
     total_learning = np.zeros((batch_size, seq_len))  # all of the individual learning amounts for an episode
+    delta_learning = np.zeros((batch_size, seq_len))
 
     if test: model.action_probs = []
     for j in range(seq_len):
@@ -43,14 +46,16 @@ def run_model(model, session, critic_fn, test=False):
         correct_hist[:, j] = action_correct
         if j == 0:
             total_learning[:, 0] = cur_learning
+            delta_learning[:, 0] = 0
         else:
-            total_learning[:, j] = cur_learning - total_learning[:, j-1]
+            total_learning[:, j] = cur_learning
+            delta_learning[:, j] = cur_learning - total_learning[:, j-1]   # just a bit lazy
 
         # apply actor gradient
         if not test: model.apply_grad(session, cur_learning)
         seq_lens += 1
 
-    return np.mean(np.sum(total_learning, axis=1))
+    return np.mean(np.sum(delta_learning, axis=1))
 
 
 class CriticWrapper(object):
@@ -61,12 +66,11 @@ class CriticWrapper(object):
         tiled_range = np.tile(np.arange(MAX_LENGTH).reshape((1, -1)), (BATCH_SIZE, 1))
         mask = (tiled_range < lens.reshape((-1, 1)))
 
-        new_probs_raw = self.critic.next_probs(session, lens, mask, prev_answers, prev_topics)
-        B, _, cats = new_probs_raw.shape
-        new_probs = new_probs_raw.reshape((B, cats))
+        new_probs = self.critic.next_probs(session, lens, mask, prev_answers, prev_topics)
+        B, cats = new_probs.shape
 
         B_rng = np.arange(B, dtype=np.int32)
-        cur_topics = prev_topics[B_rng, seq_len - 1]
+        cur_topics = prev_topics[B_rng, lens - 1]
         topic_probs = new_probs[B_rng, cur_topics]
 
         # print(new_probs.shape, topic_probs.shape)

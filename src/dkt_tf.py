@@ -120,7 +120,8 @@ class DKTModel(object):
 
         #Slice up the probabilities so that the last ones (for the *next*
         #questions encountered) are in a separate op
-        self.post_probs = tf.slice(self.all_probs, [0,self.max_length,0], [-1, -1, -1])
+        # self.post_probs = tf.slice(self.all_probs, [0,self.seq_lens_placeholder - 1,0], [-1, -1, -1])
+        self.post_probs = self.all_probs[:, self.seq_lens_placeholder[0]] # assumes all seq_lens are equal
         self.probs = tf.slice(self.all_probs, [0,0,0], [-1, self.max_length, -1])
 
         self.v_hats = tf.reduce_sum(self.probs, 2)

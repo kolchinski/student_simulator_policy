@@ -9,12 +9,13 @@ import matplotlib.pyplot as plt
 
 DATA_LOC = './assistments.txt'
 MAX_LENGTH = 100
-LR = 0.001
+LR = 0.0005
 HIDDEN_SIZE = 200
 BATCH_SIZE = 32
 MAX_EPOCHS = 10
 DROPOUT = 0.3
 TRAIN_SPLIT = 0.7
+EMBEDDING_SIZE = 25
 
 def read_assistments_data(loc):
     with open(loc) as f:
@@ -96,18 +97,34 @@ class DKTModel(object):
         cell = tf.contrib.rnn.LSTMCell(h)
         cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob = d)
 
+        cell2 = tf.contrib.rnn.LSTMCell(h)
+        cell2 = tf.contrib.rnn.DropoutWrapper(cell2, output_keep_prob = d)
+
+        embeddings = tf.Variable(
+            tf.random_uniform([self.num_topics, EMBEDDING_SIZE], -1.0, 1.0))
 
         #Can use this instead of seqs_placeholder
-        obs_seqs = tf.one_hot(self.topics_placeholder * 2 + self.answers_placeholder, 2*self.num_topics)
-        batch_size = tf.shape(obs_seqs)[0]
+        #obs_seqs = tf.one_hot(self.topics_placeholder * 2 + self.answers_placeholder, 2*self.num_topics)
+        #batch_size = tf.shape(obs_seqs)[0]
+        #self.seqs = tf.concat([tf.zeros((batch_size, 1, 2*self.num_topics)), obs_seqs], 1)
 
-        self.seqs = tf.concat([tf.zeros((batch_size, 1, 2*self.num_topics)), obs_seqs], 1)
+        topic_seqs = tf.nn.embedding_lookup(embeddings, self.topics_placeholder)
+        batch_size = tf.shape(self.topics_placeholder)[0]
+        answers_embedding = tf.to_float(tf.reshape(self.answers_placeholder, (-1, MAX_LENGTH, 1)))
+        seqs_with_answers = tf.concat([topic_seqs, answers_embedding], 2)
+        self.seqs = tf.concat([tf.zeros((batch_size, 1, EMBEDDING_SIZE + 1)), seqs_with_answers], 1)
 
-        outputs, hidden_states = tf.nn.dynamic_rnn(
-            cell=cell, inputs=self.seqs,
-            sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
-            swap_memory=True)
+        with tf.variable_scope('lstm1'):
+            outputs1, hidden_states = tf.nn.dynamic_rnn(
+                cell=cell, inputs=self.seqs,
+                sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
+                swap_memory=True)
 
+        with tf.variable_scope('lstm2'):
+            outputs, hidden_states = tf.nn.dynamic_rnn(
+                cell=cell2, inputs=outputs1,
+                sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
+                swap_memory=True)
 
         xav_init = tf.contrib.layers.xavier_initializer()
         w = tf.get_variable("W", (self.hidden_size, self.num_topics), tf.float32, xav_init)
@@ -243,8 +260,6 @@ def train_paired_models(session, data, num_topics):
     except:
         pass
 
-
-
     session.run(tf.global_variables_initializer())
 
     lens, masks, answers, topics = data
@@ -346,9 +361,9 @@ def main(_):
         #We need to explicitly initialize local variables to use
         #TensorFlow's AUC function for some reason...
         session.run(tf.local_variables_initializer())
-        #train_model(model, session, full_data)
-        model1, model2 = train_paired_models(session, full_data, num_topics)
-        test_paired_models(session, full_data, model1, model2)
+        train_model(model, session, full_data)
+        #model1, model2 = train_paired_models(session, full_data, num_topics)
+        #test_paired_models(session, full_data, model1, model2)
         #embed()
 
 

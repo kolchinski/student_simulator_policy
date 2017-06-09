@@ -26,7 +26,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
     """
 
     batch_size = BATCH_SIZE
-    seq_len = MAX_LENGTH - 1
+    seq_len = MAX_LENGTH
 
     q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
     correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
@@ -44,7 +44,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
     seq_lens += 1
 
     if test: model.action_probs = []
-    for j in range(1, seq_len):
+    for j in range(1, seq_len - 1):
         extra_args = dict(collect_action_probs=True) if test else {}
 
         # get actor actions

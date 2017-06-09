@@ -278,3 +278,43 @@ KeyboardInterrupt
 09:08:32    actor policy score 0 1: 4.6505972445
 09:08:43    actor policy score 1 0: 10.3126117587
 09:08:53    actor policy score 1 1: 10.1888785362
+09:11:26    tf version 1.0.1
+09:13:41    random policy score 0 0: 7.06050527096
+09:13:51    random policy score 0 1: 6.71291783452
+09:14:01    random policy score 1 0: 3.4707928896
+09:14:11    random policy score 1 1: 4.32079312205
+09:14:29        t=0: train policy score: 7.020319134
+09:14:39    t=0: Eval policy score: 4.15171465278
+09:17:33        t=10: train policy score: 12.3435199857
+09:20:29        t=20: train policy score: 12.3359267414
+09:20:39    t=20: Eval policy score: 0.715367585421
+09:23:36        t=30: train policy score: 12.4040149748
+09:26:32        t=40: train policy score: 11.9245592952
+09:26:42    t=40: Eval policy score: 4.15756648779
+09:29:37        t=50: train policy score: 12.3874828815
+09:32:33        t=60: train policy score: 12.2854299545
+09:32:43    t=60: Eval policy score: 2.0585770905
+09:35:37        t=70: train policy score: 2.03347188234
+09:38:32        t=80: train policy score: 2.17679381371
+09:38:42    t=80: Eval policy score: 7.65860018134
+09:41:37        t=90: train policy score: 1.91473647952
+09:44:34        t=100: train policy score: 1.86009573936
+09:44:44    t=100: Eval policy score: 7.62220820785
+09:47:40        t=110: train policy score: 1.79207843542
+09:50:35        t=120: train policy score: 1.84212318063
+09:50:45    t=120: Eval policy score: 7.76758864522
+09:53:41        t=130: train policy score: 2.16168937087
+09:56:35        t=140: train policy score: 2.05377471447
+09:56:45    t=140: Eval policy score: 7.9045369029
+09:59:41        t=150: train policy score: 2.02390599251
+10:02:38        t=160: train policy score: 2.00250458717
+10:02:49    t=160: Eval policy score: 7.79876247048
+10:05:45        t=170: train policy score: 4.3577773869
+10:08:40        t=180: train policy score: 1.93899738789
+10:08:50    t=180: Eval policy score: 7.68229231238
+10:11:45        t=190: train policy score: 2.04337736964
+10:14:32    Final eval network policy score 7.7394464016
+10:14:42    actor policy score 0 0: 1.96876344085
+10:14:53    actor policy score 0 1: 2.11418414116
+10:15:03    actor policy score 1 0: 7.66905331612
+10:15:13    actor policy score 1 1: 7.72701245546

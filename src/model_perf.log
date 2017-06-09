@@ -159,3 +159,122 @@ ValueError: setting an array element with a sequence.
 04:51:59        t=450: train policy score: 10.3160036802
 04:54:55        t=460: train policy score: 10.4891444445
 04:57:51        t=470: train policy score: 10.5663625896
+05:00:47        t=480: train policy score: 10.5187117159
+05:03:44        t=490: train policy score: 10.2999815345
+05:08:22    tf version 1.0.1
+05:08:45    random policy score 0 0: 3.74020639062
+05:08:55    random policy score 0 1: 3.9604947865
+05:09:06    random policy score 1 0: 6.48583978415
+05:09:16    random policy score 1 1: 6.33954718709
+05:09:34        t=0: train policy score: 4.21365398169
+05:09:45    t=0: Eval policy score: 6.8099539578
+05:12:44        t=10: train policy score: 3.81227767467
+05:15:43        t=20: train policy score: 4.00385174155
+05:15:53    t=20: Eval policy score: 7.25300979614
+05:18:51        t=30: train policy score: 4.0466593802
+05:21:50        t=40: train policy score: 4.40754178166
+05:22:01    t=40: Eval policy score: 5.64977124333
+05:25:00        t=50: train policy score: 2.93334209919
+05:27:58        t=60: train policy score: 4.24961662292
+05:28:09    t=60: Eval policy score: 8.42278957367
+05:31:09        t=70: train policy score: 2.44846078753
+05:34:07        t=80: train policy score: 2.98989376426
+05:34:17    t=80: Eval policy score: 7.79132911563
+05:37:15        t=90: train policy score: -0.451615095139
+05:40:14        t=100: train policy score: -3.03578066826
+05:40:24    t=100: Eval policy score: 5.95296499133
+05:43:22        t=110: train policy score: -1.71337521076
+05:46:22        t=120: train policy score: -1.8305195868
+05:46:32    t=120: Eval policy score: 5.97949299216
+05:49:31        t=130: train policy score: -1.72413378954
+05:52:28        t=140: train policy score: -0.446557462215
+05:52:39    t=140: Eval policy score: 1.92328444123
+05:55:36        t=150: train policy score: 5.55003082752
+05:58:35        t=160: train policy score: 1.27108702064
+05:58:45    t=160: Eval policy score: 9.66550981998
+06:01:44        t=170: train policy score: 3.85171598196
+06:04:42        t=180: train policy score: 0.509270727634
+06:04:52    t=180: Eval policy score: -4.05286452174
+06:07:50        t=190: train policy score: -4.20583868027
+06:10:41    Final eval network policy score -2.53960245848
+06:10:51    actor policy score 0 0: -4.30199447274
+06:11:02    actor policy score 0 1: -4.25123047829
+06:11:12    actor policy score 1 0: -2.59873080254
+06:11:23    actor policy score 1 1: -2.53566858172
+07:43:19    tf version 1.0.1
+07:43:40    random policy score 0 0: 3.66824540496
+07:43:50    random policy score 0 1: 3.9017059207
+07:44:01    random policy score 1 0: 6.6556108892
+07:44:11    random policy score 1 1: 6.63124218583
+07:44:28        t=0: train policy score: 4.38541117311
+07:44:38    t=0: Eval policy score: 6.70835000277
+07:47:34        t=10: train policy score: 3.44852539897
+07:50:29        t=20: train policy score: 3.50905632973
+07:50:39    t=20: Eval policy score: 6.88546836376
+07:53:33        t=30: train policy score: 4.7574249804
+07:56:29        t=40: train policy score: 0.587648123503
+07:56:39    t=40: Eval policy score: 4.80742898583
+07:59:34        t=50: train policy score: -3.02447408438
+08:01:24    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 130, in main
+    learning = run_model(model, session, train_critic.get_next_info)
+  File "run_full_model.py", line 55, in run_model
+    cur_learning, action_correct = critic_fn(session, seq_lens, correct_hist, q_hist)
+  File "run_full_model.py", line 83, in get_next_info
+    new_probs = self.critic.next_probs(session, lens, mask, prev_answers, prev_topics)
+  File "/home/cs234/cs234_project/src/dkt_tf.py", line 220, in next_probs
+    post_probs, = session.run([self.post_probs], feed_dict=feed_dict)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 767, in run
+    run_metadata_ptr)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 965, in _run
+    feed_dict_string, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1015, in _do_run
+    target_list, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1022, in _do_call
+    return fn(*args)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1004, in _run_fn
+    status, run_metadata)
+KeyboardInterrupt
+
+08:06:14    tf version 1.0.1
+08:06:36    random policy score 0 0: 4.06378802657
+08:06:46    random policy score 0 1: 4.42587545514
+08:06:57    random policy score 1 0: 6.2212356925
+08:07:07    random policy score 1 1: 6.39777383208
+08:07:26        t=0: train policy score: 4.04441136122
+08:07:36    t=0: Eval policy score: 6.30163106322
+08:10:36        t=10: train policy score: 4.70570471883
+08:13:35        t=20: train policy score: 4.68908879161
+08:13:45    t=20: Eval policy score: 10.2550626397
+08:16:41        t=30: train policy score: 4.4972153604
+08:19:37        t=40: train policy score: 4.71660169959
+08:19:48    t=40: Eval policy score: 10.387332201
+08:22:45        t=50: train policy score: 4.6300830543
+08:25:44        t=60: train policy score: 4.67176428437
+08:25:54    t=60: Eval policy score: 10.2719438672
+08:28:52        t=70: train policy score: 4.67066600919
+08:31:48        t=80: train policy score: 4.73053461313
+08:31:58    t=80: Eval policy score: 10.3089128435
+08:34:55        t=90: train policy score: 4.54005840421
+08:37:54        t=100: train policy score: 4.49078428745
+08:38:05    t=100: Eval policy score: 10.1973228753
+08:41:03        t=110: train policy score: 4.627856493
+08:43:59        t=120: train policy score: 4.55836856365
+08:44:09    t=120: Eval policy score: 10.0492545664
+08:47:08        t=130: train policy score: 4.72092807293
+08:50:04        t=140: train policy score: 4.66348141432
+08:50:14    t=140: Eval policy score: 10.3060573339
+08:53:14        t=150: train policy score: 4.53660878539
+08:56:12        t=160: train policy score: 4.47494006157
+08:56:22    t=160: Eval policy score: 10.2712859511
+08:59:19        t=170: train policy score: 4.7049433589
+09:02:16        t=180: train policy score: 4.69540989399
+09:02:26    t=180: Eval policy score: 10.1469523907
+09:05:22        t=190: train policy score: 4.61226412654
+09:08:12    Final eval network policy score 10.3216767609
+09:08:22    actor policy score 0 0: 4.60098689795
+09:08:32    actor policy score 0 1: 4.6505972445
+09:08:43    actor policy score 1 0: 10.3126117587
+09:08:53    actor policy score 1 1: 10.1888785362

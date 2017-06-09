@@ -37,7 +37,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
     # Alex's stats
     all_Qs_stats = np.zeros((batch_size, seq_lens, num_topics))
 
-    cur_learning, action_correct = critic_fn(session, seq_lens, correct_hist, q_hist)
+    cur_learning, action_correct = critic_fn(session, seq_len, correct_hist, q_hist)
     all_Qs_stats[:, 0] = cur_learning
 
     total_learning[:, 0] = cur_learning.sum(axis=1)

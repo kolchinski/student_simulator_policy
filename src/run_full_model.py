@@ -35,7 +35,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
     delta_learning = np.zeros((batch_size, seq_len))
 
     # Alex's stats
-    all_Qs_stats = np.zeros((batch_size, seq_lens, num_topics))
+    all_Qs_stats = np.zeros((batch_size, seq_len, num_topics))
 
     cur_learning, action_correct = critic_fn(session, seq_len, correct_hist, q_hist)
     all_Qs_stats[:, 0] = cur_learning

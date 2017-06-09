@@ -16,7 +16,10 @@ TRAIN_SPLIT = 0.7
 
 PRINT_EVERY = 10
 
-def run_model(model, session, critic_fn, test=False):
+
+model_learning_res = None
+
+def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
     """
     runs an iteration of the actor model
     :return avg_learning: the average amount that the actor learned in an episode
@@ -54,6 +57,9 @@ def run_model(model, session, critic_fn, test=False):
         # apply actor gradient
         if not test: model.apply_grad(session, cur_learning)
         seq_lens += 1
+
+    if collect_extra_data:
+        return np.mean(np.sum(delta_learning, axis=1)), total_learning[:, -1] - total_learning[:, 0]
 
     return np.mean(np.sum(delta_learning, axis=1))
 
@@ -98,6 +104,17 @@ def main(actor_episodes=1000):
         train_critic = CriticWrapper(model1)
         dev_critic = CriticWrapper(model2)
 
+
+        # all of the extra data to collect
+        alexs_data = - np.ones((2,2, 256, num_topics))
+
+        # Collect data on random model
+        for model_no, c_model in enumerate((train_critic, dev_critic)):
+            for batch_num in range(256 // BATCH_SIZE):
+                learning, res = run_model(model, session, c_model.get_next_info, test=True, collect_extra_data=True)
+                logging.info("random policy score {} {}: {}".format(model_no, batch_num, learning))
+                alexs_data[0, model_no, BATCH_SIZE * batch_num: (batch_num + 1) * BATCH_SIZE] = res
+
         # train the actor
         for t in range(actor_episodes):
             learning = run_model(model, session, train_critic.get_next_info)
@@ -109,6 +126,15 @@ def main(actor_episodes=1000):
 
         dev_learning = run_model(model, session, dev_critic.get_next_info, test=True)
         logging.info("Final eval network policy score {}".format(dev_learning))
+
+        for model_no, c_model in enumerate((train_critic, dev_critic)):
+            for batch_num in range(256 // BATCH_SIZE):
+                learning, res = run_model(model, session, c_model.get_next_info, test=True, collect_extra_data=True)
+                logging.info("actor policy score {} {}: {}".format(model_no, batch_num, learning))
+                alexs_data[1, model_no, BATCH_SIZE * batch_num: (batch_num + 1) * BATCH_SIZE] = res
+
+        # now to store the data
+        np.save("alex_stats.npy", alexs_data)
 
 
 if __name__ == '__main__':

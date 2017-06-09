@@ -24,3 +24,138 @@
 08:42:09        t=200: train policy score: 9.29931291938
 08:42:16    t=200: Eval policy score: 7.8815715611
 08:44:45        t=210: train policy score: 9.26803389192
+02:23:50    tf version 1.0.1
+02:23:59    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 107, in main
+    with tf.Session() as session:
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1176, in __init__
+    super(Session, self).__init__(target, graph, config=config)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 552, in __init__
+    self._session = tf_session.TF_NewDeprecatedSession(opts, status)
+KeyboardInterrupt
+
+02:24:14    tf version 1.0.1
+02:26:20    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 124, in main
+    learning, res = run_model(model, session, c_model.get_next_info, test=True, collect_extra_data=True)
+  File "run_full_model.py", line 38, in run_model
+    all_Qs_stats = np.zeros((batch_size, seq_lens, num_topics))
+TypeError: only integer scalar arrays can be converted to a scalar index
+
+02:30:17    tf version 1.0.1
+02:30:28    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 124, in main
+    learning, res = run_model(model, session, c_model.get_next_info, test=True, collect_extra_data=True)
+  File "run_full_model.py", line 38, in run_model
+    all_Qs_stats = np.zeros((batch_size, seq_lens, num_topics))
+TypeError: only integer scalar arrays can be converted to a scalar index
+
+02:31:55    tf version 1.0.1
+02:32:07    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 124, in main
+    learning, res = run_model(model, session, c_model.get_next_info, test=True, collect_extra_data=True)
+  File "run_full_model.py", line 60, in run_model
+    delta_learning[:, j] = total_learning - total_learning[:, j-1]   # just a bit lazy
+ValueError: operands could not be broadcast together with shapes (128,100) (128,) 
+
+02:32:51    tf version 1.0.1
+02:33:14    random policy score 0 0: 4.08107176423
+02:33:14    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 126, in main
+    alexs_data[0, model_no, BATCH_SIZE * batch_num: (batch_num + 1) * BATCH_SIZE] = res
+ValueError: could not broadcast input array from shape (128) into shape (128,124)
+
+02:34:49    tf version 1.0.1
+02:34:49    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 100, in main
+    topics, answers, num_topics = dkt_tf.read_assistments_data(dkt_tf.DATA_LOC)
+  File "/home/cs234/cs234_project/src/dkt_tf.py", line 22, in read_assistments_data
+    data = [[int(y) for y in x.strip().split()] for x in f.readlines()]
+KeyboardInterrupt
+
+02:35:04    tf version 1.0.1
+02:35:26    random policy score 0 0: 3.74960160255
+02:35:37    random policy score 0 1: 3.69100299478
+02:35:47    random policy score 1 0: 6.90672150254
+02:35:58    random policy score 1 1: 7.05861288309
+02:35:58    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 130, in main
+    learning = run_model(model, session, train_critic.get_next_info)
+  File "run_full_model.py", line 66, in run_model
+    if not test: model.apply_grad(session, cur_learning)
+  File "/home/cs234/cs234_project/src/actor.py", line 143, in apply_grad
+    action_vec[i, self.next_action[i]] = val
+ValueError: setting an array element with a sequence.
+
+02:37:19    tf version 1.0.1
+02:37:41    random policy score 0 0: 3.63690572977
+02:37:52    random policy score 0 1: 4.44601756334
+02:38:03    random policy score 1 0: 6.86014863849
+02:38:13    random policy score 1 1: 6.71450197697
+02:38:31        t=0: train policy score: 3.74815678596
+02:38:42    t=0: Eval policy score: 6.65053021908
+02:41:39        t=10: train policy score: 4.36973872781
+02:44:34        t=20: train policy score: 3.55621114373
+02:47:30        t=30: train policy score: 7.5584769249
+02:50:25        t=40: train policy score: 3.085493505
+02:53:20        t=50: train policy score: 10.646987021
+02:56:16        t=60: train policy score: 10.3518284857
+02:59:11        t=70: train policy score: 7.96980959177
+03:02:09        t=80: train policy score: 1.46272355318
+03:05:06        t=90: train policy score: 10.4017452598
+03:08:05        t=100: train policy score: -4.05085077882
+03:08:15    t=100: Eval policy score: -2.72987037897
+03:11:11        t=110: train policy score: 9.11007273197
+03:14:08        t=120: train policy score: 10.3127334416
+03:17:04        t=130: train policy score: 10.3352165818
+03:20:00        t=140: train policy score: 10.5086063147
+03:23:00        t=150: train policy score: 10.3716691732
+03:25:57        t=160: train policy score: 10.345600158
+03:28:53        t=170: train policy score: 10.3995329738
+03:31:48        t=180: train policy score: 10.5699451864
+03:34:45        t=190: train policy score: 10.5642748773
+03:37:44        t=200: train policy score: 10.4612818062
+03:37:54    t=200: Eval policy score: -5.83463522792
+03:40:49        t=210: train policy score: 10.6100000739
+03:43:44        t=220: train policy score: 10.5231072903
+03:46:40        t=230: train policy score: 10.5519036949
+03:49:34        t=240: train policy score: 10.5753676891
+03:52:31        t=250: train policy score: 10.5168564022
+03:55:29        t=260: train policy score: 10.6539124846
+03:58:27        t=270: train policy score: 10.4808152914
+04:01:24        t=280: train policy score: 10.462551415
+04:04:22        t=290: train policy score: 10.3582960665
+04:07:19        t=300: train policy score: 10.3521231115
+04:07:29    t=300: Eval policy score: -5.72163024545
+04:10:26        t=310: train policy score: 10.4907336533
+04:13:22        t=320: train policy score: 10.4521527886
+04:16:19        t=330: train policy score: 10.4736227095
+04:19:17        t=340: train policy score: 10.2698312402
+04:22:17        t=350: train policy score: 10.3890534639
+04:25:14        t=360: train policy score: 10.2859609723
+04:28:12        t=370: train policy score: 10.245556891
+04:31:08        t=380: train policy score: 10.452316463
+04:34:08        t=390: train policy score: 10.3335605562
+04:37:04        t=400: train policy score: 10.5256497264
+04:37:14    t=400: Eval policy score: -5.67090445757
+04:40:11        t=410: train policy score: 10.4273903668
+04:43:08        t=420: train policy score: 10.4412126839
+04:46:05        t=430: train policy score: 10.4951369762
+04:49:02        t=440: train policy score: 10.1716877222
+04:51:59        t=450: train policy score: 10.3160036802
+04:54:55        t=460: train policy score: 10.4891444445
+04:57:51        t=470: train policy score: 10.5663625896

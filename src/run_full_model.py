@@ -67,7 +67,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
         seq_lens += 1
 
     if collect_extra_data:
-        return np.mean(np.sum(delta_learning, axis=1)), total_learning[:, -1] - total_learning[:, 0]
+        return np.mean(np.sum(delta_learning, axis=1)), all_Qs_stats[:, -1] - all_Qs_stats[:, 0]
 
     return np.mean(np.sum(delta_learning, axis=1))
 

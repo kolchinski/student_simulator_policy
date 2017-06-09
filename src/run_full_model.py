@@ -14,7 +14,7 @@ MAX_EPOCHS = 10
 DROPOUT = 0.3
 TRAIN_SPLIT = 0.7
 
-PRINT_EVERY = 10
+PRINT_EVERY = 2
 
 
 model_learning_res = None
@@ -92,7 +92,7 @@ class CriticWrapper(object):
         return new_probs, new_correctness
 
 
-def main(actor_episodes=100):
+def main(actor_episodes=40):
     logging.info("tf version " + tf.__version__)
 
     # initialize critic stuff

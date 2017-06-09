@@ -91,6 +91,7 @@ class DKTModel(object):
 
 
     def data_pipeline(self):
+        xav_init = tf.contrib.layers.xavier_initializer()
         d = 1.0 - self.dropout_placeholder
         h = self.hidden_size
 
@@ -108,14 +109,20 @@ class DKTModel(object):
         #batch_size = tf.shape(obs_seqs)[0]
         #self.seqs = tf.concat([tf.zeros((batch_size, 1, 2*self.num_topics)), obs_seqs], 1)
 
+        init_embedding = tf.Variable(tf.random_uniform([BATCH_SIZE, 1, EMBEDDING_SIZE+1], -1.0, 1.0))
+
         topic_seqs = tf.nn.embedding_lookup(embeddings, self.topics_placeholder)
         batch_size = tf.shape(self.topics_placeholder)[0]
         answers_embedding = tf.to_float(tf.reshape(self.answers_placeholder, (-1, MAX_LENGTH, 1)))
         seqs_with_answers = tf.concat([topic_seqs, answers_embedding], 2)
-        self.seqs = tf.concat([tf.zeros((batch_size, 1, EMBEDDING_SIZE + 1)), seqs_with_answers], 1)
+        self.seqs = tf.concat([init_embedding, seqs_with_answers], 1)
+
+        init_state1 = tf.Variable(tf.random_uniform([BATCH_SIZE, self.hidden_size], -1.0, 1.0))
+        init_state2 = tf.Variable(tf.random_uniform([BATCH_SIZE, self.hidden_size], -1.0, 1.0))
+        init_state = tf.contrib.rnn.LSTMStateTuple(init_state1, init_state2)
 
         with tf.variable_scope('lstm1'):
-            outputs1, hidden_states = tf.nn.dynamic_rnn(
+            outputs1, hidden_states = tf.nn.dynamic_rnn(initial_state=init_state,
                 cell=cell, inputs=self.seqs,
                 sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
                 swap_memory=True)
@@ -126,7 +133,6 @@ class DKTModel(object):
                 sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
                 swap_memory=True)
 
-        xav_init = tf.contrib.layers.xavier_initializer()
         w = tf.get_variable("W", (self.hidden_size, self.num_topics), tf.float32, xav_init)
         b = tf.get_variable("b", (self.num_topics,), tf.float32, tf.constant_initializer(0.0))
         outputs_flat = tf.reshape(outputs, [-1, self.hidden_size])

@@ -318,3 +318,71 @@ KeyboardInterrupt
 10:14:53    actor policy score 0 1: 2.11418414116
 10:15:03    actor policy score 1 0: 7.66905331612
 10:15:13    actor policy score 1 1: 7.72701245546
+06:19:28    tf version 1.0.1
+06:19:51    random policy score 0 0: 6.72090160847
+06:20:01    random policy score 0 1: 6.59114506841
+06:20:12    random policy score 1 0: 4.00795587897
+06:20:22    random policy score 1 1: 4.07204046845
+06:20:41        t=0: train policy score: 7.01492169499
+06:20:51    t=0: Eval policy score: 3.65270486474
+06:23:50        t=10: train policy score: 10.8625371754
+06:24:00    t=10: Eval policy score: 1.68455949426
+06:26:57        t=20: train policy score: 2.56980937719
+06:27:07    t=20: Eval policy score: 7.8956142962
+06:30:04        t=30: train policy score: 2.04817610979
+06:30:14    t=30: Eval policy score: 7.7655762732
+06:33:13        t=40: train policy score: 1.98347684741
+06:33:24    t=40: Eval policy score: 7.60408851504
+06:36:22        t=50: train policy score: 2.25525769591
+06:36:32    t=50: Eval policy score: 7.86013883352
+06:38:49    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    main()
+  File "run_full_model.py", line 130, in main
+    learning = run_model(model, session, train_critic.get_next_info)
+  File "run_full_model.py", line 66, in run_model
+    if not test: model.apply_grad(session, cur_learning.sum(axis=1))
+  File "/home/cs234/cs234_project/src/actor.py", line 151, in apply_grad
+    _ = session.run([self.train_op], feed_dict=self.action_feed_dict)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 767, in run
+    run_metadata_ptr)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 965, in _run
+    feed_dict_string, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1015, in _do_run
+    target_list, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1022, in _do_call
+    return fn(*args)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1004, in _run_fn
+    status, run_metadata)
+KeyboardInterrupt
+
+06:39:19    tf version 1.0.1
+06:39:41    random policy score 0 0: 6.36431142688
+06:39:52    random policy score 0 1: 6.50710326433
+06:40:03    random policy score 1 0: 4.171572119
+06:40:14    random policy score 1 1: 3.87322294712
+06:40:32        t=0: train policy score: 6.58780133724
+06:40:43    t=0: Eval policy score: 4.11293885112
+06:43:44        t=10: train policy score: 6.89816516638
+06:43:54    t=10: Eval policy score: 4.1749972105
+06:46:55        t=20: train policy score: 6.43912792206
+06:47:06    t=20: Eval policy score: 3.83687394857
+06:50:05        t=30: train policy score: 6.9930998981
+06:50:16    t=30: Eval policy score: 4.13004216552
+06:53:16        t=40: train policy score: 6.61652049422
+06:53:27    t=40: Eval policy score: 3.84915450215
+06:56:29        t=50: train policy score: 9.33764988184
+06:56:39    t=50: Eval policy score: 2.34920048714
+06:59:39        t=60: train policy score: 9.71763160825
+06:59:50    t=60: Eval policy score: 1.91705486178
+07:02:51        t=70: train policy score: 10.5158392787
+07:03:02    t=70: Eval policy score: 1.32834404707
+07:06:02        t=80: train policy score: 10.8956557214
+07:06:12    t=80: Eval policy score: 1.25292745233
+07:09:11        t=90: train policy score: 11.0340143442
+07:09:22    t=90: Eval policy score: 1.80913552642
+07:12:15    Final eval network policy score 2.8717661798
+07:12:26    actor policy score 0 0: 11.1397560835
+07:12:37    actor policy score 0 1: 11.1258844733
+07:12:47    actor policy score 1 0: 2.35058355331
+07:12:57    actor policy score 1 1: 2.43295150995

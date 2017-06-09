@@ -92,7 +92,7 @@ class CriticWrapper(object):
         return new_probs, new_correctness
 
 
-def main(actor_episodes=200):
+def main(actor_episodes=100):
     logging.info("tf version " + tf.__version__)
 
     # initialize critic stuff

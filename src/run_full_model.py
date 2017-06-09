@@ -34,8 +34,13 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
     total_learning = np.zeros((batch_size, seq_len))  # all of the individual learning amounts for an episode
     delta_learning = np.zeros((batch_size, seq_len))
 
+    # Alex's stats
+    all_Qs_stats = np.zeros((batch_size, seq_lens, num_topics))
+
     cur_learning, action_correct = critic_fn(session, seq_lens, correct_hist, q_hist)
-    total_learning[:, 0] = cur_learning
+    all_Qs_stats[:, 0] = cur_learning
+
+    total_learning[:, 0] = cur_learning.sum(axis=1)
     seq_lens += 1
 
     if test: model.action_probs = []
@@ -51,8 +56,11 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
 
         # process critic answers
         correct_hist[:, j] = action_correct
-        total_learning[:, j] = cur_learning
-        delta_learning[:, j] = cur_learning - total_learning[:, j-1]   # just a bit lazy
+        total_learning[:, j] = cur_learning.sum(axis=1)
+        delta_learning[:, j] = total_learning - total_learning[:, j-1]   # just a bit lazy
+
+        # Alex's stats
+        all_Qs_stats[:, j] = cur_learning
 
         # apply actor gradient
         if not test: model.apply_grad(session, cur_learning)
@@ -81,13 +89,14 @@ class CriticWrapper(object):
 
         # print(new_probs.shape, topic_probs.shape)
         new_correctness = np.random.random(topic_probs.shape) < topic_probs
-        return new_probs.sum(axis=1), new_correctness
+        return new_probs, new_correctness
 
 
 def main(actor_episodes=1000):
     logging.info("tf version " + tf.__version__)
 
     # initialize critic stuff
+    global num_topics  # Hack to get Alex's data
     topics, answers, num_topics = dkt_tf.read_assistments_data(dkt_tf.DATA_LOC)
     full_data = dkt_tf.load_data(topics, answers, num_topics)
 
@@ -106,7 +115,8 @@ def main(actor_episodes=1000):
 
 
         # all of the extra data to collect
-        alexs_data = - np.ones((2,2, 256, num_topics))
+        # dimmensions: policy num (0=random, 1=actor), critic (0=train), people, topics
+        alexs_data = - np.ones((2, 2, 256, num_topics))
 
         # Collect data on random model
         for model_no, c_model in enumerate((train_critic, dev_critic)):

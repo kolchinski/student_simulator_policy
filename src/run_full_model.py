@@ -57,7 +57,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
         # process critic answers
         correct_hist[:, j] = action_correct
         total_learning[:, j] = cur_learning.sum(axis=1)
-        delta_learning[:, j] = total_learning - total_learning[:, j-1]   # just a bit lazy
+        delta_learning[:, j] = total_learning[:, j] - total_learning[:, j-1]
 
         # Alex's stats
         all_Qs_stats[:, j] = cur_learning

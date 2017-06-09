@@ -48,11 +48,11 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
         extra_args = dict(collect_action_probs=True) if test else {}
 
         # get actor actions
-        actions = model.get_next_action(session, q_hist, correct_hist, seq_lens - 1, epsilon=0, **extra_args)
+        actions = model.get_next_action(session, q_hist, correct_hist, seq_lens, epsilon=0, **extra_args)
         q_hist[:, j - 1] = actions
 
         # get critic scores
-        cur_learning, action_correct = critic_fn(session, seq_lens, correct_hist, q_hist)
+        cur_learning, action_correct = critic_fn(session, seq_lens + 1, correct_hist, q_hist)
 
         # process critic answers
         correct_hist[:, j - 1] = action_correct

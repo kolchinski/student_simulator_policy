@@ -118,4 +118,9 @@ if __name__ == '__main__':
     logging.getLogger().handlers[0].setFormatter(formatter)
     file_handler.setFormatter(formatter)
     logging.getLogger().addHandler(file_handler)
-    main()
+    try:
+        main()
+    except BaseException as e:
+        import traceback
+        logging.error(traceback.format_exc())
+        raise e

@@ -26,7 +26,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
     """
 
     batch_size = BATCH_SIZE
-    seq_len = MAX_LENGTH
+    seq_len = MAX_LENGTH - 1
 
     q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
     correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)

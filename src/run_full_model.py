@@ -63,7 +63,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
         all_Qs_stats[:, j] = cur_learning
 
         # apply actor gradient
-        if not test: model.apply_grad(session, cur_learning)
+        if not test: model.apply_grad(session, cur_learning.sum(axis=1))
         seq_lens += 1
 
     if collect_extra_data:

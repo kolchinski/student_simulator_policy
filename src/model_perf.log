@@ -386,3 +386,33 @@ KeyboardInterrupt
 07:12:37    actor policy score 0 1: 11.1258844733
 07:12:47    actor policy score 1 0: 2.35058355331
 07:12:57    actor policy score 1 1: 2.43295150995
+07:33:19    tf version 1.0.1
+07:35:39    random policy score 0 0: 4.97564551234
+07:35:49    random policy score 0 1: 4.97571858764
+07:36:00    random policy score 1 0: 3.46585702896
+07:36:10    random policy score 1 1: 3.61094769835
+07:36:29        t=0: train policy score: 4.7959267199
+07:36:39    t=0: Eval policy score: 3.19762039185
+07:39:42        t=10: train policy score: 6.24996432662
+07:39:53    t=10: Eval policy score: 5.80090898275
+07:42:54        t=20: train policy score: 5.21181720495
+07:43:05    t=20: Eval policy score: 7.6903116703
+07:46:09        t=30: train policy score: 4.89258414507
+07:46:19    t=30: Eval policy score: 7.6068226397
+07:49:19        t=40: train policy score: 4.8781221807
+07:49:29    t=40: Eval policy score: 7.58931511641
+07:52:28        t=50: train policy score: 4.88498291373
+07:52:38    t=50: Eval policy score: 7.5883154273
+07:55:38        t=60: train policy score: 4.77367171645
+07:55:48    t=60: Eval policy score: 7.33781260252
+07:58:46        t=70: train policy score: 4.83766102791
+07:58:57    t=70: Eval policy score: 7.68433919549
+08:01:56        t=80: train policy score: 4.8092533052
+08:02:06    t=80: Eval policy score: 7.56484410167
+08:05:06        t=90: train policy score: 4.76547339559
+08:05:16    t=90: Eval policy score: 7.55570781231
+08:08:07    Final eval network policy score 7.54149758816
+08:08:18    actor policy score 0 0: 4.8749204874
+08:08:28    actor policy score 0 1: 4.88361564279
+08:08:38    actor policy score 1 0: 7.55762198567
+08:08:49    actor policy score 1 1: 7.41753020883

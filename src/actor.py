@@ -81,7 +81,7 @@ class Actor(object):
         self.action_gradient = tf.placeholder(tf.float32, [None, categories])
         # the minimize function for the adam loss has a "grad_loss" param that is useful
         # opt = tf.train.GradientDescentOptimizer(1e-3)
-        opt = tf.train.AdamOptimizer(2e-5)
+        opt = tf.train.AdamOptimizer(1e-4)
         mask_res = self.res * tf.cast(self.action_mask, dtype=tf.float32)
         # self.train_op = opt.minimize(mask_res, grad_loss=-self.action_gradient / self.res)
         self.train_op = opt.minimize(tf.reduce_sum(-tf.log(self.res) * self.action_gradient))

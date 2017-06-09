@@ -95,40 +95,40 @@ class DKTModel(object):
         d = 1.0 - self.dropout_placeholder
         h = self.hidden_size
 
-        cell = tf.contrib.rnn.LSTMCell(h)
-        cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob = d)
-
-        cell2 = tf.contrib.rnn.LSTMCell(h)
-        cell2 = tf.contrib.rnn.DropoutWrapper(cell2, output_keep_prob = d)
-
         embeddings = tf.Variable(
-            tf.random_uniform([self.num_topics, EMBEDDING_SIZE], -1.0, 1.0))
+            tf.random_uniform([self.num_topics * 2, EMBEDDING_SIZE], -1.0, 1.0))
 
         #Can use this instead of seqs_placeholder
         #obs_seqs = tf.one_hot(self.topics_placeholder * 2 + self.answers_placeholder, 2*self.num_topics)
         #batch_size = tf.shape(obs_seqs)[0]
         #self.seqs = tf.concat([tf.zeros((batch_size, 1, 2*self.num_topics)), obs_seqs], 1)
-
-        init_embedding = tf.Variable(tf.random_uniform([BATCH_SIZE, 1, EMBEDDING_SIZE+1], -1.0, 1.0))
-
-        topic_seqs = tf.nn.embedding_lookup(embeddings, self.topics_placeholder)
-        batch_size = tf.shape(self.topics_placeholder)[0]
-        answers_embedding = tf.to_float(tf.reshape(self.answers_placeholder, (-1, MAX_LENGTH, 1)))
-        seqs_with_answers = tf.concat([topic_seqs, answers_embedding], 2)
-        self.seqs = tf.concat([init_embedding, seqs_with_answers], 1)
-
         init_state1 = tf.Variable(tf.random_uniform([BATCH_SIZE, self.hidden_size], -1.0, 1.0))
         init_state2 = tf.Variable(tf.random_uniform([BATCH_SIZE, self.hidden_size], -1.0, 1.0))
-        init_state = tf.contrib.rnn.LSTMStateTuple(init_state1, init_state2)
+        batch_size = tf.shape(self.topics_placeholder)[0]
+
+        # add start token,
+        topics_wo_start = self.topics_placeholder + self.num_topics * self.answers_placeholder
+        all_topics = tf.concat((tf.zeros((batch_size, 1), dtype=tf.int32), topics_wo_start), axis=1)
+
+        topic_seqs = tf.nn.embedding_lookup(embeddings, all_topics)
+        # answers_embedding = tf.to_float(tf.reshape(self.answers_placeholder, (-1, MAX_LENGTH, 1)))
+        # seqs_with_answers = tf.concat([topic_seqs, answers_embedding], 2)
+        # self.seqs = tf.concat([tf.zeros((batch_size, 1, EMBEDDING_SIZE + 1)), seqs_with_answers], 1)
+        self.seqs = topic_seqs
 
         with tf.variable_scope('lstm1'):
-            outputs1, hidden_states = tf.nn.dynamic_rnn(initial_state=init_state,
+            cell = tf.contrib.rnn.LSTMCell(h)
+            cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=d)
+            outputs1, hidden_states = tf.nn.dynamic_rnn(# initial_state=init_state1,
                 cell=cell, inputs=self.seqs,
                 sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
                 swap_memory=True)
 
         with tf.variable_scope('lstm2'):
-            outputs, hidden_states = tf.nn.dynamic_rnn(
+            cell2 = tf.contrib.rnn.LSTMCell(h)
+            cell2 = tf.contrib.rnn.DropoutWrapper(cell2, output_keep_prob=d)
+
+            outputs, hidden_states = tf.nn.dynamic_rnn(# initial_state=init_state2,
                 cell=cell2, inputs=outputs1,
                 sequence_length=self.seq_lens_placeholder + 1, dtype=tf.float32,
                 swap_memory=True)
@@ -276,29 +276,26 @@ def train_paired_models(session, data, num_topics):
     first_data = zipped_data[:cutoff]
     second_data = zipped_data[cutoff:]
 
-    for epoch in range(1):
-        np.random.shuffle(first_data)
-        train_batches = batchify(first_data)
+    def train_model_epoch(model, train_data, dev_data, epoch_num, ):
+        np.random.shuffle(train_data)
+        train_batches = batchify(train_data)
 
-        print("First model; starting training epoch", epoch)
+        print("starting training epoch", epoch_num)
         for batch_num, train_batch in enumerate(train_batches):
-            loss = model1.train_on_batch(session, *train_batch)
-            print("On batch number {}, loss is {}".format(batch_num, loss))
+            loss = model.train_on_batch(session, *train_batch)
+            if batch_num % 10 == 0:
+                print("On batch number {}, loss is {}".format(batch_num, loss))
 
-        print("Epoch {} complete, evaluating model...".format(epoch))
-        eval_model(second_data, model1, session)
+        print("Epoch {} complete, evaluating model...".format(epoch_num))
+        eval_model(dev_data, model, session)
 
-    for epoch in range(1):
-        np.random.shuffle(second_data)
-        train_batches = batchify(second_data)
+    for epoch in range(3):
+        print("First Model")
+        train_model_epoch(model1, first_data, second_data, epoch)
 
-        print("Second model; starting training epoch", epoch)
-        for batch_num, train_batch in enumerate(train_batches):
-            loss = model2.train_on_batch(session, *train_batch)
-            print("On batch number {}, loss is {}".format(batch_num, loss))
-
-        print("Epoch {} complete, evaluating model...".format(epoch))
-        eval_model(first_data, model2, session)
+    for epoch in range(3):
+        print("Second Model")
+        train_model_epoch(model2, second_data, first_data, epoch)
 
 
     saver.save(session, CKPT_FILE)

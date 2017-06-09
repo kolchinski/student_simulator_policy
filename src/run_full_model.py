@@ -27,12 +27,16 @@ def run_model(model, session, critic_fn, test=False):
 
     q_hist = np.zeros((batch_size, seq_len), dtype=np.int32)
     correct_hist = np.zeros((batch_size, seq_len), dtype=np.bool)
-    seq_lens = np.ones((batch_size,), dtype=np.int32)
+    seq_lens = np.zeros((batch_size,), dtype=np.int32)
     total_learning = np.zeros((batch_size, seq_len))  # all of the individual learning amounts for an episode
     delta_learning = np.zeros((batch_size, seq_len))
 
+    cur_learning, action_correct = critic_fn(session, seq_lens, correct_hist, q_hist)
+    total_learning[:, 0] = cur_learning
+    seq_lens += 1
+
     if test: model.action_probs = []
-    for j in range(seq_len):
+    for j in range(1, seq_len):
         extra_args = dict(collect_action_probs=True) if test else {}
 
         # get actor actions
@@ -44,12 +48,8 @@ def run_model(model, session, critic_fn, test=False):
 
         # process critic answers
         correct_hist[:, j] = action_correct
-        if j == 0:
-            total_learning[:, 0] = cur_learning
-            delta_learning[:, 0] = 0
-        else:
-            total_learning[:, j] = cur_learning
-            delta_learning[:, j] = cur_learning - total_learning[:, j-1]   # just a bit lazy
+        total_learning[:, j] = cur_learning
+        delta_learning[:, j] = cur_learning - total_learning[:, j-1]   # just a bit lazy
 
         # apply actor gradient
         if not test: model.apply_grad(session, cur_learning)
@@ -70,7 +70,7 @@ class CriticWrapper(object):
         B, cats = new_probs.shape
 
         B_rng = np.arange(B, dtype=np.int32)
-        cur_topics = prev_topics[B_rng, lens - 1]
+        cur_topics = prev_topics[B_rng, lens]
         topic_probs = new_probs[B_rng, cur_topics]
 
         # print(new_probs.shape, topic_probs.shape)

@@ -138,8 +138,7 @@ def main(_):
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
         print topics
-        #_, obj = actor.train_on_batch(session, rewards, seq_lens, masks, answers, topics)
-        _, obj = actor.train_on_batch(session, [[.1,.2] + [0]*98], [2], [[1,1] + [0] * 98], [1,1] , topics)
+        obj = actor.train_on_batch(session, rewards, seq_lens, masks, answers, topics)
         print obj
 
 

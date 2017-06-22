@@ -416,3 +416,41 @@ KeyboardInterrupt
 08:08:28    actor policy score 0 1: 4.88361564279
 08:08:38    actor policy score 1 0: 7.55762198567
 08:08:49    actor policy score 1 1: 7.41753020883
+02:42:47    tf version 1.0.1
+02:44:28    random policy score 0 0: 4.86224463582
+02:45:58    random policy score 0 1: 5.08158704638
+02:47:48    random policy score 1 0: 3.41104906797
+02:49:18    random policy score 1 1: 3.4479713738
+02:51:19        t=0: train policy score: 5.04336088896
+02:52:49    t=0: Eval policy score: 3.5166130662
+03:13:44        t=10: train policy score: 5.48325264454
+03:15:24    t=10: Eval policy score: 7.20714333653
+03:37:23        t=20: train policy score: 3.11853006482
+03:39:07    t=20: Eval policy score: 6.2136823833
+04:00:11        t=30: train policy score: 2.9878526926
+04:01:41    t=30: Eval policy score: 6.15600028634
+04:22:59        t=40: train policy score: 3.00038507581
+04:24:26    t=40: Eval policy score: 5.97774988413
+04:34:28    Traceback (most recent call last):
+  File "run_full_model.py", line 158, in <module>
+    file_handler.setFormatter(formatter)
+  File "run_full_model.py", line 130, in main
+    # train the actor
+  File "run_full_model.py", line 55, in run_model
+    cur_learning, action_correct = critic_fn(session, seq_lens, correct_hist, q_hist)
+  File "run_full_model.py", line 83, in get_next_info
+    new_probs = self.critic.next_probs(session, lens, mask, prev_answers, prev_topics)
+  File "/media/alex/Data/Backup_root/Backup_docs/Grad_Coursework/Spring_2017/cs234/project/cs234_project/src/dkt_tf.py", line 220, in next_probs
+    post_probs, = session.run([self.post_probs], feed_dict=feed_dict)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 767, in run
+    run_metadata_ptr)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 965, in _run
+    feed_dict_string, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1015, in _do_run
+    target_list, options, run_metadata)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1022, in _do_call
+    return fn(*args)
+  File "/usr/local/lib/python2.7/dist-packages/tensorflow/python/client/session.py", line 1004, in _run_fn
+    status, run_metadata)
+KeyboardInterrupt
+

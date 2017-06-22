@@ -71,7 +71,7 @@ def run_model(model, session, critic_fn, test=False, collect_extra_data=False):
 
     return np.mean(np.sum(delta_learning, axis=1))
 
-
+#TODO: if new model is not compatible with CriticWrapper, write a different one
 class CriticWrapper(object):
     def __init__(self, critic):
         self.critic = critic
@@ -109,6 +109,7 @@ def main(actor_episodes=40):
         # session.run(tf.local_variables_initializer())  trained paired models does this internally
 
         # train the critic
+        #TODO: another model would go here
         model1, model2 = dkt_tf.train_paired_models(session, full_data, num_topics)
         train_critic = CriticWrapper(model1)
         dev_critic = CriticWrapper(model2)
@@ -119,6 +120,7 @@ def main(actor_episodes=40):
         alexs_data = - np.ones((2, 2, 256, num_topics))
 
         # Collect data on random model
+        #TODO: add another model (critic) in here
         for model_no, c_model in enumerate((train_critic, dev_critic)):
             for batch_num in range(256 // BATCH_SIZE):
                 learning, res = run_model(model, session, c_model.get_next_info, test=True, collect_extra_data=True)
@@ -137,6 +139,7 @@ def main(actor_episodes=40):
         dev_learning = run_model(model, session, dev_critic.get_next_info, test=True)
         logging.info("Final eval network policy score {}".format(dev_learning))
 
+        #TODO: add another model (critic) in here
         for model_no, c_model in enumerate((train_critic, dev_critic)):
             for batch_num in range(256 // BATCH_SIZE):
                 learning, res = run_model(model, session, c_model.get_next_info, test=True, collect_extra_data=True)

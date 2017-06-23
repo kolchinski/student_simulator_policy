@@ -4,6 +4,7 @@ import numpy as np
 import logging
 import os
 import random
+from IPython import embed
 
 logging.basicConfig(level=logging.INFO)
 train_dir = "./train_actor"
@@ -28,7 +29,7 @@ class Actor(object):
         with tf.variable_scope("dkt"):
             self.pred_actions = self.build_network()
 
-        self.objective = self.add_loss()
+        self.objective = self.add_objective()
         self.train_op = tf.train.AdamOptimizer(self.lr_placeholder).minimize(-1.0 * self.objective)
 
     def add_placeholders(self):
@@ -67,7 +68,7 @@ class Actor(object):
 
         return self.next_actions
 
-    def add_loss(self):
+    def add_objective(self):
 
         topic_indicators = tf.one_hot(self.topics_placeholder, self.num_topics)
         topical_probs = tf.reduce_sum(self.probs * topic_indicators, 2)
@@ -98,8 +99,8 @@ class Actor(object):
 
 #TODO: make sure everything is lining up timewise unlike last time
 def fake_sequences(num_seqs, num_topics=2, seq_len=50):
-    learning_rates = np.ones(num_topics) * 0.05
-    learning_rates[0] = .3
+    learning_rates = np.ones(num_topics) * 0.2
+    #learning_rates[1] = 1
 
     topics = []
     answers = []
@@ -115,15 +116,17 @@ def fake_sequences(num_seqs, num_topics=2, seq_len=50):
         probs = np.zeros(num_topics)
         last_probs = np.copy(probs)
         for t in range(seq_len):
-            cur_rewards.append(np.sum(probs) - np.sum(last_probs))
-
-            topic = np.random.randint(2)
+            topic = np.random.randint(num_topics)
             cur_topics.append(topic)
             answer = int(np.random.random() < probs[topic])
             cur_answers.append(answer)
 
             last_probs = np.copy(probs)
-            probs[topic] = min(1.0, probs[topic] + learning_rates[topic])
+            if topic == 0 or probs[0] >= 0.8 and topic == 1 or probs[1] >= 0.8 and topic == 2:
+                probs[topic] = min(1.0, probs[topic] + learning_rates[topic])
+            #probs[topic] = min(1.0, probs[topic] + learning_rates[topic])
+            #probs[topic] = probs[topic] + learning_rates[topic]
+            cur_rewards.append(np.sum(probs) - np.sum(last_probs))
         topics.append(cur_topics + [0]*(100-seq_len))
         answers.append(cur_answers + [0]*(100-seq_len))
         rewards.append(cur_rewards + [0]*(100-seq_len))
@@ -132,14 +135,29 @@ def fake_sequences(num_seqs, num_topics=2, seq_len=50):
 
 def main(_):
     print "Testing actor"
-    topics, answers, masks, seq_lens, rewards = fake_sequences(1)
-    actor = Actor(2, HIDDEN_SIZE, MAX_LENGTH)
+    topics, answers, masks, seq_lens, rewards = fake_sequences(20000, 3)
+    actor = Actor(3, HIDDEN_SIZE, MAX_LENGTH)
+    #embed()
+
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
-        print topics
-        obj = actor.train_on_batch(session, rewards, seq_lens, masks, answers, topics)
-        print obj
+        #print topics
+        for i in range(200):
+            s,e = 100*i, 100*(i+1)
+            obj = actor.train_on_batch(session, rewards[s:e], seq_lens[s:e], masks[s:e], answers[s:e], topics[s:e])
+            print obj
+        actions = actor.test_on_batch(session, rewards[s:e], seq_lens[s:e], masks[s:e], answers[s:e], topics[s:e])
+        actionsArray = np.array(actions[0])
+        zerosByTime = np.sum(actionsArray == 0, axis=0)
+        onesByTime = np.sum(actionsArray == 1, axis=0)
+        twosByTime =  np.sum(actionsArray == 2, axis=0)
+        avgZeroPos = np.sum(np.arange(50) * zerosByTime[:50]) / np.sum(zerosByTime[:50])
+        avgOnePos = np.sum(np.arange(50) * onesByTime[:50]) / np.sum(onesByTime[:50])
+        avgTwoPos = np.sum(np.arange(50) * twosByTime[:50]) / np.sum(twosByTime[:50])
+        print avgZeroPos, avgOnePos, avgTwoPos
+        embed()
+        #print actions
 
 
 if __name__ == "__main__":

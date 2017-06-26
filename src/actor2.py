@@ -16,7 +16,7 @@ LR = 0.01
 
 
 class Actor(object):
-    def __init__(self, num_topics, hidden_size, max_length):
+    def __init__(self, num_topics, hidden_size = 200, max_length = 100):
 
         self.num_topics = num_topics
         self.hidden_size = hidden_size
@@ -26,7 +26,7 @@ class Actor(object):
     def build_pipeline(self):
         self.add_placeholders()
 
-        with tf.variable_scope("dkt"):
+        with tf.variable_scope("actor"):
             self.pred_actions = self.build_network()
 
         self.objective = self.add_objective()
@@ -97,7 +97,12 @@ class Actor(object):
         return next_actions
 
 
-#TODO: make sure everything is lining up timewise unlike last time
+# Note: testing the actor with pregenerated sequences like this is not strictly
+# correct, as the REINFORCE algorithm trains a policy with respect to the actions
+# the policy *actually selects*, whereas here the policy is trained with respect
+# to randomly taken actions
+# Still, the fact that the actor learns something sensible based on this is a
+# good sign for it working
 def fake_sequences(num_seqs, num_topics=2, seq_len=50):
     learning_rates = np.ones(num_topics) * 0.2
     #learning_rates[1] = 1

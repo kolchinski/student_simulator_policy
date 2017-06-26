@@ -220,6 +220,14 @@ class DKTModel(object):
         post_probs, = session.run([self.post_probs], feed_dict=feed_dict)
         return post_probs
 
+    def next_probs_with_topical(self, session, lens_batch, masks_batch, answers_batch, topics_batch):
+        feed_dict = {
+            self.seq_lens_placeholder: lens_batch,
+            self.mask_placeholder: masks_batch,
+            self.answers_placeholder: answers_batch,
+            self.topics_placeholder: topics_batch}
+        post_probs, topical_probs = session.run([self.post_probs, self.topical_probs], feed_dict=feed_dict)
+        return post_probs, topical_probs
 
     def __init__(self, num_topics, hidden_size, max_length):
         self.num_topics = num_topics
@@ -350,6 +358,15 @@ def eval_model(test_data, model, session):
     print("{} test examples right out of {}, which is {} percent. Mean AUC {}\n".format(
         total_correct, total_total, 100.0*total_correct/total_total, 1.0*total_auc/total_total))
 
+
+def get_paired_models(session):
+    topics, answers, num_topics = read_assistments_data(DATA_LOC)
+    full_data = load_data(topics, answers, num_topics)
+
+    model1, model2 = train_paired_models(session, full_data, num_topics)
+    #test_paired_models(session, full_data, model1, model2)
+
+    return model1, model2
 
 def main(_):
     print('tf version', tf.__version__)

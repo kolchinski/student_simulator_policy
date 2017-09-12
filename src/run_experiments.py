@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from actor2 import Actor
 import dkt_tf
+import logreg_model
 from IPython import embed
 
 NUM_BATCHES = 10
@@ -190,8 +191,11 @@ def main(_):
     #We need to explicitly initialize local variables to use
     #TensorFlow's AUC function for some reason...
     model_session.run(tf.local_variables_initializer())
-    model1, model2 = dkt_tf.get_paired_models(model_session)
+    model1, model2, data2 = dkt_tf.get_paired_models(model_session, True)
     print model1, model2
+
+    model_logreg = logreg_model.LogRegModel(124)
+    model_logreg.train(data2)
 
     actor_session = tf.Session()
     actor = Actor(124)
@@ -202,11 +206,11 @@ def main(_):
     single_actor = OneTopicActor(124)
     mastery_actor = SequentialMasteryActor(124)
 
-    avg_skill_gain, actor_gains = test_actor_on_model(actor_session, model_session, actor, model2)
-    print "Average skill gain for real actor", avg_skill_gain
-
     avg_random_skill_gain, random_gains = test_actor_on_model(actor_session, model_session, random_actor, model2)
     print "Average skill gain for random actor", avg_random_skill_gain
+
+    avg_skill_gain, actor_gains = test_actor_on_model(actor_session, model_session, actor, model2)
+    print "Average skill gain for real actor", avg_skill_gain
 
     avg_single_skill_gain, single_gains = test_actor_on_model(actor_session, model_session, single_actor, model2)
     print "Average skill gain for one-topic actor", avg_single_skill_gain

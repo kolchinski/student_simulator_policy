@@ -268,21 +268,21 @@ def train_paired_models(session, data, num_topics):
 
     session.run(tf.local_variables_initializer())
 
-    saver = tf.train.Saver()
-    try:
-        saver.restore(session, CKPT_FILE)
-        return model1, model2
-    except:
-        pass
-
-    session.run(tf.global_variables_initializer())
-
     lens, masks, answers, topics = data
     assert(len(lens) == len(masks) == len(answers) == len(topics))
     cutoff = int(len(lens) * 0.5)
     zipped_data = list(zip(*data))
     first_data = zipped_data[:cutoff]
     second_data = zipped_data[cutoff:]
+
+    saver = tf.train.Saver()
+    try:
+        saver.restore(session, CKPT_FILE)
+        return model1, model2, second_data
+    except:
+        pass
+
+    session.run(tf.global_variables_initializer())
 
     def train_model_epoch(model, train_data, dev_data, epoch_num, ):
         np.random.shuffle(train_data)
@@ -310,7 +310,7 @@ def train_paired_models(session, data, num_topics):
 
     #return model1, first_seq_lens, first_answers, first_topics, first_masks, first_v_hats, \
     #    model2, second_seq_lens, second_answers, second_topics, second_masks, second_v_hats,
-    return model1, model2
+    return model1, model2, second_data
 
 
 def test_paired_models(session, data, model1, model2):
@@ -359,13 +359,14 @@ def eval_model(test_data, model, session):
         total_correct, total_total, 100.0*total_correct/total_total, 1.0*total_auc/total_total))
 
 
-def get_paired_models(session):
+def get_paired_models(session, return_second_data = False):
     topics, answers, num_topics = read_assistments_data(DATA_LOC)
     full_data = load_data(topics, answers, num_topics)
 
-    model1, model2 = train_paired_models(session, full_data, num_topics)
+    model1, model2, second_data = train_paired_models(session, full_data, num_topics)
     #test_paired_models(session, full_data, model1, model2)
 
+    if return_second_data: return model1, model2, second_data
     return model1, model2
 
 def main(_):
